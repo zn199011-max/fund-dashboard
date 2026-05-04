@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基金估值仪表盘</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+</script>
+<style>
+:root {
+  --bg: #f5f6fa;
+  --card-bg: #fff;
+  --text: #2d3436;
+  --text-secondary: #636e72;
+  --border: #e0e0e0;
+  --green: #00b894;
+  --red: #e17055;
+  --blue: #0984e3;
+  --orange: #fdcb6e;
+  --shadow: 0 2px 8px rgba(0,0,0,.08);
+  --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh;
+}
+.header {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: #fff; padding: 20px 24px; position: sticky; top:0; z-index:100;
+}
+.header h1 { font-size: 1.4em; font-weight: 600; }
+.header .subtitle { font-size: .85em; opacity:.7; margin-top: 2px; }
+.container { max-width: 1200px; margin: auto; padding: 16px; }
+
+.add-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.add-bar input {
+  flex: 1; min-width: 200px; padding: 12px 16px;
+  border: 2px solid var(--border); border-radius: var(--radius);
+  font-size: 1em; outline: none; transition: border-color .2s;
+}
+.add-bar input:focus { border-color: var(--blue); }
+.add-bar button {
+  padding: 12px 24px; background: var(--blue); color: #fff;
+  border: none; border-radius: var(--radius); font-size: 1em;
+  cursor: pointer; font-weight: 600; transition: opacity .2s;
+}
+.add-bar button:hover { opacity: .85; }
+.add-bar button.secondary {
+  background: #fff; color: var(--blue); border: 2px solid var(--blue);
+}
+
+.summary-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px; margin-bottom: 20px;
+}
+.summary-card {
+  background: var(--card-bg); border-radius: var(--radius);
+  padding: 16px 20px; box-shadow: var(--shadow);
+}
+.summary-card .label { font-size: .8em; color: var(--text-secondary); }
+.summary-card .value { font-size: 1.5em; font-weight: 700; margin-top: 4px; }
+.summary-card .change { font-size: .85em; margin-top: 2px; }
+
+.fund-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+.fund-card {
+  background: var(--card-bg); border-radius: var(--radius);
+  padding: 20px; box-shadow: var(--shadow);
+  border-left: 4px solid var(--blue); transition: transform .15s;
+  position: relative;
+}
+.fund-card:hover { transform: translateY(-2px); }
+.fund-card .fund-name { font-size: 1.1em; font-weight: 700; padding-right: 28px; }
+.fund-card .fund-code { font-size: .8em; color: var(--text-secondary); }
+.fund-card .metrics {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0;
+}
+.fund-card .metric .lbl { font-size: .75em; color: var(--text-secondary); }
+.fund-card .metric .val { font-size: 1.1em; font-weight: 600; }
+.fund-card .remove-btn {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none; color: #b2bec3;
+  font-size: 1.4em; cursor: pointer; line-height: 1;
+}
+.fund-card .remove-btn:hover { color: var(--red); }
+
+.indicator-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.badge {
+  display: inline-block; padding: 4px 10px; border-radius: 20px;
+  font-size: .78em; font-weight: 600;
+}
+.badge.green { background: #d4fceb; color: #007a54; }
+.badge.red { background: #ffe6e0; color: #c0392b; }
+.badge.orange { background: #fff3d6; color: #b8860b; }
+.badge.blue { background: #d6ecff; color: #0059b3; }
+.badge.gray { background: #eee; color: #777; }
+
+.chart-wrap { margin-top: 12px; height: 200px; position: relative; }
+.chart-wrap canvas { width: 100% !important; }
+
+.pe-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.pe-bar-wrap {
+  flex: 1; height: 8px; border-radius: 4px;
+  background: linear-gradient(to right, #00b894, #fdcb6e, #e17055);
+  position: relative;
+}
+.pe-dot {
+  position: absolute; top: -4px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; border: 3px solid #2d3436;
+  transform: translateX(-50%);
+}
+.pe-label { font-size: .78em; color: var(--text-secondary); min-width: 56px; }
+
+.loading-msg { text-align:center; padding:40px; color:var(--text-secondary); font-size:1.1em; }
+.error-msg { color:var(--red); font-size:.85em; margin-top:6px; }
+
+@media (max-width: 600px) {
+  .fund-grid { grid-template-columns: 1fr; }
+  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .header h1 { font-size: 1.2em; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>基金估值仪表盘</h1>
+  <div class="subtitle" id="updateTime">数据来源：天天基金/东方财富 ｜ 仅供参考，不构成投资建议</div>
+</div>
+
+<div class="container">
+  <div class="add-bar">
+    <input type="text" id="fundInput" placeholder="输入6位基金代码，多个用逗号分隔，如 000001,110011">
+    <button onclick="addFunds()">＋ 添加基金</button>
+    <button class="secondary" onclick="refreshAll()">⟳ 刷新</button>
+    <button class="secondary" onclick="exportCSV()">📋 导出CSV</button>
+  </div>
+
+  <div class="summary-grid" id="summary"></div>
+  <div id="fundList"></div>
+  <div class="loading-msg" id="loadingMsg">请输入基金代码开始</div>
+</div>
+
+<script>
+// ======================== Fund Data APIs ========================
+
+// 1. 天天基金 JSONP — 实时估值 (works from any origin)
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const cb = '_cb' + Math.random().toString(36).slice(2);
+    window[cb] = data => { delete window[cb]; script.remove(); resolve(data); };
+    const script = document.createElement('script');
+    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb + '&_=' + Date.now();
+    script.onerror = () => { delete window[cb]; script.remove(); reject(new Error('网络错误')); };
+    document.head.appendChild(script);
+  });
+}
+
+function fetchEstimate(code) {
+  return jsonp(`https://fundgz.1234567.com.cn/js/${code}.js`);
+}
+
+// 2. 东方财富历史净值 — load pingzhongdata JS to extract global vars
+function fetchHistory(code) {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = `https://fund.eastmoney.com/pingzhongdata/${code}.js?v=${Date.now()}`;
+    script.onload = () => {
+      script.remove();
+      const raw = window.Data_netWorthTrend;
+      if (raw && raw.length) {
+        const data = raw.map(d => ({
+          date: String(d.x).slice(0,10),
+          nav: d.y
+        }));
+        // Clean up global
+        delete window.Data_netWorthTrend;
+        delete window.Data_ACWorthTrend;
+        delete window.Data_rateInSimilarPersent;
+        delete window.Data_rateInSimilarFound;
+        delete window.fS_name;
+        delete window.fS_code;
+        delete window.Data_fluctuationScale;
+        delete window.Data_holderStructure;
+        resolve(data);
+      } else {
+        resolve([]);
+      }
+    };
+    script.onerror = () => { script.remove(); resolve([]); };
+    document.head.appendChild(script);
+  });
+}
+
+// 3. Fetch PE percentile for index funds
+function fetchPEPercentile(code) {
+  return fetch(`https://api.fund.eastmoney.com/f10/FundTradeInfo?fundcode=${code}`, {
+    headers: { 'Referer': 'https://fund.eastmoney.com/' }
+  })
+  .then(r => r.json())
+  .then(d => {
+    const data = d?.Data || {};
+    return {
+      pe: data.PE || null,
+      pePercentile: data.PEPercentile || null,
+      pb: data.PB || null,
+      pbPercentile: data.PBPercentile || null,
+      fundSize: data.FundSize || null,
+    };
+  })
+  .catch(() => ({}));
+}
+
+// ======================== Calculations ========================
+
+function calcReturns(history) {
+  if (!history || history.length < 5) return {};
+  const last = history[history.length - 1].nav;
+  const periods = { '1月': 22, '3月': 66, '6月': 132, '1年': 264 };
+  const result = {};
+  for (const [label, days] of Object.entries(periods)) {
+    const idx = Math.max(0, history.length - 1 - days);
+    const prev = history[idx].nav;
+    if (prev && prev > 0) result[label] = ((last - prev) / prev * 100);
+  }
+  return result;
+}
+
+function calcMaxDrawdown(history) {
+  if (!history || history.length < 2) return null;
+  let peak = history[0].nav, maxDd = 0;
+  for (const h of history) {
+    if (h.nav > peak) peak = h.nav;
+    const dd = (peak - h.nav) / peak * 100;
+    if (dd > maxDd) maxDd = dd;
+  }
+  return maxDd;
+}
+
+function calcAnnualVol(history) {
+  if (!history || history.length < 22) return null;
+  const rets = [];
+  for (let i = 1; i < history.length; i++) {
+    rets.push((history[i].nav - history[i-1].nav) / history[i-1].nav);
+  }
+  const avg = rets.reduce((a,b) => a + b, 0) / rets.length;
+  const vari = rets.reduce((a,b) => a + (b - avg) ** 2, 0) / rets.length;
+  return Math.sqrt(vari) * Math.sqrt(252) * 100;
+}
+
+// ======================== Formatting ========================
+
+const fmt = n => n != null && !isNaN(n) ? Number(n).toLocaleString('zh-CN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '--';
+const pct = n => { if (n == null || isNaN(n)) return '--'; const v = parseFloat(n); return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; };
+const pctClr = n => { if (n == null) return ''; const v = parseFloat(n); if (v > 0) return 'var(--green)'; if (v < 0) return 'var(--red)'; return ''; };
+const badgeCls = n => { if (n == null) return 'gray'; const v = parseFloat(n); if (v > 2) return 'green'; if (v > 0) return 'green'; if (v > -2) return 'orange'; return 'red'; };
+
+// ======================== Render ========================
+
+function renderSummary(funds) {
+  const hasData = funds.filter(f => f.estTime).length;
+  const up = funds.filter(f => f.changePct > 0).length;
+  const down = funds.filter(f => f.changePct < 0).length;
+  document.getElementById('summary').innerHTML = `
+    <div class="summary-card"><div class="label">基金数量</div><div class="value">${funds.length}</div></div>
+    <div class="summary-card"><div class="label">上涨 / 下跌</div>
+      <div class="value"><span style="color:var(--green)">${up}</span> / <span style="color:var(--red)">${down}</span></div></div>
+    <div class="summary-card"><div class="label">有实时估值</div><div class="value">${hasData} 只</div></div>
+    <div class="summary-card"><div class="label">更新时间</div><div class="value" style="font-size:1em">${new Date().toLocaleTimeString('zh-CN')}</div></div>
+  `;
+  document.getElementById('updateTime').textContent = `数据来源：天天基金/东方财富 ｜ 更新时间 ${new Date().toLocaleString('zh-CN')} ｜ 仅供参考`;
+}
+
+function renderFundCard(f) {
+  const up = f.changePct > 0, down = f.changePct < 0;
+  const borderClr = up ? 'var(--green)' : down ? 'var(--red)' : 'var(--blue)';
+
+  const retTags = f.returns ? Object.entries(f.returns).map(([k,v]) =>
+    `<span class="badge ${badgeCls(v)}">${k}: ${pct(v)}</span>`
+  ).join(' ') : '';
+
+  const extraTags = [];
+  if (f.maxDd != null) extraTags.push(`<span class="badge orange">最大回撤: ${f.maxDd.toFixed(2)}%</span>`);
+  if (f.vol != null) extraTags.push(`<span class="badge blue">年化波动: ${f.vol.toFixed(2)}%</span>`);
+  if (f.pe != null) extraTags.push(`<span class="badge ${badgeCls(f.pePercentile != null ? (100 - f.pePercentile) / 20 : 0)}">PE: ${f.pe.toFixed(2)}${f.pePercentile != null ? ' (百分位' + f.pePercentile.toFixed(0) + '%)' : ''}</span>`);
+  if (f.fundSize) {
+    const sizeStr = f.fundSize > 10000 ? (f.fundSize / 10000).toFixed(2) + '亿' : f.fundSize.toFixed(2) + '万';
+    extraTags.push(`<span class="badge gray">规模: ${sizeStr}</span>`);
+  }
+
+  return `
+    <div class="fund-card" style="border-left-color:${borderClr}" id="card-${f.code}">
+      <button class="remove-btn" onclick="removeFund('${f.code}')" title="移除">×</button>
+      <div class="fund-name">${f.name || '基金' + f.code}</div>
+      <div class="fund-code">${f.code}${f.estTime ? ' · 估值: ' + f.estTime : ''}${f.jzrq ? ' · 净值日: ' + f.jzrq : ''}</div>
+
+      <div class="metrics">
+        <div class="metric"><div class="lbl">单位净值</div><div class="val">${f.dwjz || '--'}</div></div>
+        <div class="metric"><div class="lbl">估算净值</div>
+          <div class="val" style="color:${up ? 'var(--green)' : down ? 'var(--red)' : ''}">${f.gsz || '--'}</div></div>
+        <div class="metric"><div class="lbl">估算涨跌幅</div>
+          <div class="val" style="color:${pctClr(f.changePct)}">${f.changePct != null ? pct(f.changePct) : '--'}</div></div>
+        <div class="metric"><div class="lbl">净值日期</div><div class="val">${f.jzrq || '--'}</div></div>
+      </div>
+
+      ${retTags ? `<div class="indicator-row">${retTags}</div>` : ''}
+      ${extraTags.length ? `<div class="indicator-row">${extraTags.join(' ')}</div>` : ''}
+      ${f.pePercentile != null ? `
+      <div class="pe-row">
+        <span style="font-size:.78em;color:var(--text-secondary)">PE百分位</span>
+        <div class="pe-bar-wrap"><div class="pe-dot" style="left:${f.pePercentile}%"></div></div>
+        <span class="pe-label">${f.pePercentile.toFixed(0)}%</span>
+      </div>` : ''}
+
+      <div class="chart-wrap" id="chart-${f.code}"></div>
+    </div>`;
+}
+
+const charts = {};
+function renderChart(code, history) {
+  const wrap = document.getElementById('chart-' + code);
+  if (!wrap || !history || history.length < 2) return;
+  // destroy existing
+  if (charts[code]) { charts[code].destroy(); delete charts[code]; }
+  const oldCv = wrap.querySelector('canvas');
+  if (oldCv) oldCv.remove();
+
+  const cv = document.createElement('canvas');
+  wrap.appendChild(cv);
+  const dates = history.map(h => h.date);
+  const navs = history.map(h => h.nav);
+
+  charts[code] = new Chart(cv, {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: '单位净值',
+        data: navs,
+        borderColor: '#0984e3',
+        backgroundColor: 'rgba(9,132,227,0.06)',
+        borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `净值: ${ctx.raw.toFixed(4)}` } }
+      },
+      scales: {
+        x: { ticks: { maxTicksLimit: 6, font: { size: 9 }, autoSkip: true }, grid: { display: false } },
+        y: { ticks: { font: { size: 9 }, callback: v => v.toFixed(2) }, grid: { color: '#f0f0f0' } }
+      },
+      interaction: { intersect: false, mode: 'index' }
+    }
+  });
+}
+
+// ======================== Core Logic ========================
+
+const cache = {};
+
+async function loadFund(code, forceHistory = false) {
+  // Load estimate
+  let est = null;
+  try { est = await fetchEstimate(code); } catch(e) { /* ignore */ }
+
+  const name = est?.name || ('基金 ' + code);
+
+  // Load history (cache for session)
+  let history = forceHistory ? null : (cache[code]?.history || null);
+  if (!history) {
+    history = await fetchHistory(code);
+  }
+
+  // Load PE data
+  let peData = {};
+  try { peData = await fetchPEPercentile(code); } catch(e) { /* ignore */ }
+
+  const fund = {
+    code, name,
+    dwjz: est?.dwjz || null,
+    gsz: est?.gsz || null,
+    changePct: est?.gszzl ? parseFloat(est.gszzl) : null,
+    estTime: est?.gztime || null,
+    jzrq: est?.jzrq || null,
+    returns: calcReturns(history),
+    maxDd: calcMaxDrawdown(history),
+    vol: calcAnnualVol(history),
+    pe: peData.pe,
+    pePercentile: peData.pePercentile,
+    pb: peData.pb,
+    pbPercentile: peData.pbPercentile,
+    fundSize: peData.fundSize,
+    history
+  };
+
+  cache[code] = fund;
+  return fund;
+}
+
+async function refreshAll() {
+  const codes = getCodes();
+  if (!codes.length) { showEmpty('请先添加基金代码'); return; }
+
+  showLoading('正在刷新数据...');
+  const funds = [];
+  for (const code of codes) {
+    const f = await loadFund(code);
+    funds.push(f);
+  }
+  renderAll(funds);
+}
+
+function renderAll(funds) {
+  renderSummary(funds);
+  document.getElementById('fundList').innerHTML =
+    '<div class="fund-grid">' + funds.map(renderFundCard).join('') + '</div>';
+  document.getElementById('loadingMsg').style.display = 'none';
+
+  requestAnimationFrame(() => {
+    funds.forEach(f => { if (f.history?.length >= 2) renderChart(f.code, f.history); });
+  });
+}
+
+function showLoading(msg) {
+  document.getElementById('loadingMsg').style.display = 'block';
+  document.getElementById('loadingMsg').textContent = msg;
+}
+function showEmpty(msg) {
+  document.getElementById('fundList').innerHTML = '';
+  document.getElementById('summary').innerHTML = '';
+  document.getElementById('loadingMsg').style.display = 'block';
+  document.getElementById('loadingMsg').textContent = msg;
+}
+
+// ======================== Fund Management ========================
+
+const KEY = 'fund_codes';
+function getCodes() { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch { return []; } }
+function saveCodes(codes) { localStorage.setItem(KEY, JSON.stringify([...new Set(codes)])); }
+
+async function addFunds() {
+  const raw = document.getElementById('fundInput').value.trim();
+  if (!raw) return;
+  const newCodes = raw.split(/[,，\s]+/).filter(c => /^\d{6}$/.test(c));
+  if (!newCodes.length) { alert('请输入6位数字基金代码'); return; }
+  const all = [...new Set([...getCodes(), ...newCodes])];
+  saveCodes(all);
+  document.getElementById('fundInput').value = '';
+  await refreshAll();
+}
+
+async function removeFund(code) {
+  const codes = getCodes().filter(c => c !== code);
+  saveCodes(codes);
+  delete cache[code];
+  delete charts[code];
+  if (!codes.length) { showEmpty('请输入基金代码开始'); return; }
+  const funds = codes.map(c => cache[c]).filter(Boolean);
+  if (funds.length === codes.length) renderAll(funds);
+  else await refreshAll();
+}
+
+function exportCSV() {
+  const funds = Object.values(cache);
+  if (!funds.length) { alert('暂无数据'); return; }
+  const cols = ['代码','名称','单位净值','估算净值','估算涨跌(%)','净值日期','1月收益','3月收益','6月收益','1年收益','最大回撤(%)','年化波动(%)','PE','PE百分位','PB'];
+  const rows = [cols.join(',')];
+  funds.forEach(f => {
+    rows.push([
+      f.code, `"${f.name}"`, f.dwjz||'', f.gsz||'', f.changePct||'', f.jzrq||'',
+      f.returns?.['1月']||'', f.returns?.['3月']||'', f.returns?.['6月']||'', f.returns?.['1年']||'',
+      f.maxDd||'', f.vol||'', f.pe||'', f.pePercentile||'', f.pb||''
+    ].join(','));
+  });
+  const BOM = '﻿';
+  const blob = new Blob([BOM + rows.join('\n')], {type: 'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `基金数据_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ======================== Init ========================
+(function() {
+  const codes = getCodes();
+  if (codes.length) {
+    document.getElementById('fundInput').placeholder = `已保存: ${codes.join(', ')}`;
+    refreshAll();
+  }
+})();
+
+// Handle Enter key
+document.getElementById('fundInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addFunds();
+});
+</script>
+</body>
+</html>
