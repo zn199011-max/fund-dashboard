@@ -147,50 +147,59 @@ body {
 <script>
 // ======================== Fund Data APIs ========================
 
-// 1. 天天基金 JSONP — 实时估值 (works from any origin)
-function jsonp(url) {
+// 1. 天天基金 JSONP — 实时估值 (API 固定用 jsonpgz 回调)
+function fetchEstimate(code) {
   return new Promise((resolve, reject) => {
-    const cb = '_cb' + Math.random().toString(36).slice(2);
-    window[cb] = data => { delete window[cb]; script.remove(); resolve(data); };
+    const prev = window.jsonpgz;
     const script = document.createElement('script');
-    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + cb + '&_=' + Date.now();
-    script.onerror = () => { delete window[cb]; script.remove(); reject(new Error('网络错误')); };
+    window.jsonpgz = function(data) {
+      window.jsonpgz = prev;
+      script.remove();
+      resolve(data);
+    };
+    script.src = `https://fundgz.1234567.com.cn/js/${code}.js?_=${Date.now()}`;
+    script.onerror = () => {
+      window.jsonpgz = prev;
+      script.remove();
+      reject(new Error('网络错误'));
+    };
+    setTimeout(() => {
+      if (window.jsonpgz !== prev) {
+        // Already resolved
+      } else {
+        window.jsonpgz = prev;
+        script.remove();
+        reject(new Error('请求超时'));
+      }
+    }, 10000);
     document.head.appendChild(script);
   });
-}
-
-function fetchEstimate(code) {
-  return jsonp(`https://fundgz.1234567.com.cn/js/${code}.js`);
 }
 
 // 2. 东方财富历史净值 — load pingzhongdata JS to extract global vars
 function fetchHistory(code) {
   return new Promise((resolve) => {
     const script = document.createElement('script');
+    let done = false;
+    const finish = (data) => { if (!done) { done = true; script.remove(); resolve(data); } };
     script.src = `https://fund.eastmoney.com/pingzhongdata/${code}.js?v=${Date.now()}`;
     script.onload = () => {
-      script.remove();
       const raw = window.Data_netWorthTrend;
+      // Clean up globals
+      const keys = ['Data_netWorthTrend','Data_ACWorthTrend','Data_rateInSimilarPersent',
+        'Data_rateInSimilarFound','fS_name','fS_code','Data_fluctuationScale',
+        'Data_holderStructure','Data_fundSharesPositions','Data_assetAllocation',
+        'syl_1n','syl_6y','syl_3y','syl_1y','stockCodes','stockCodesNew','zqCodes',
+        'zqCodesNew','fund_sourceRate','fund_Rate','fund_minsg','ishb'];
+      keys.forEach(k => { delete window[k]; });
       if (raw && raw.length) {
-        const data = raw.map(d => ({
-          date: String(d.x).slice(0,10),
-          nav: d.y
-        }));
-        // Clean up global
-        delete window.Data_netWorthTrend;
-        delete window.Data_ACWorthTrend;
-        delete window.Data_rateInSimilarPersent;
-        delete window.Data_rateInSimilarFound;
-        delete window.fS_name;
-        delete window.fS_code;
-        delete window.Data_fluctuationScale;
-        delete window.Data_holderStructure;
-        resolve(data);
+        finish(raw.map(d => ({ date: String(d.x).slice(0,10), nav: d.y })));
       } else {
-        resolve([]);
+        finish([]);
       }
     };
-    script.onerror = () => { script.remove(); resolve([]); };
+    script.onerror = () => finish([]);
+    setTimeout(() => finish([]), 15000);
     document.head.appendChild(script);
   });
 }
@@ -407,13 +416,17 @@ async function refreshAll() {
   const codes = getCodes();
   if (!codes.length) { showEmpty('请先添加基金代码'); return; }
 
-  showLoading('正在刷新数据...');
+  showLoading('正在加载...');
   const funds = [];
-  for (const code of codes) {
-    const f = await loadFund(code);
+  for (let i = 0; i < codes.length; i++) {
+    showLoading(`正在加载 ${codes[i]} (${i+1}/${codes.length})...`);
+    const f = await loadFund(codes[i]);
     funds.push(f);
+    // Render incrementally so user sees progress
+    renderAll([...funds]);
   }
-  renderAll(funds);
+  document.getElementById('updateTime').textContent =
+    `数据来源：天天基金/东方财富 ｜ 更新时间 ${new Date().toLocaleString('zh-CN')} ｜ 仅供参考`;
 }
 
 function renderAll(funds) {
