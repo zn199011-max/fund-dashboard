@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>基金估值仪表盘</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
-</script>
 <style>
 :root {
   --bg: #f5f6fa;
@@ -143,6 +141,27 @@ body {
   <div id="fundList"></div>
   <div class="loading-msg" id="loadingMsg">请输入基金代码开始</div>
 </div>
+
+<!-- Chart.js 异步加载：尝试多个CDN，不阻塞页面 -->
+<script>
+(function loadChartJS() {
+  const urls = [
+    'https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.0/chart.umd.min.js',
+    'https://unpkg.zhimg.com/chart.js@4.4.0/dist/chart.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
+  ];
+  function tryLoad(i) {
+    if (i >= urls.length) { console.warn('Chart.js failed'); return; }
+    const s = document.createElement('script');
+    s.src = urls[i];
+    s.onload = () => { console.log('Chart OK'); window._chartReady = true; if (window._recharts) window._recharts(); };
+    s.onerror = () => tryLoad(i + 1);
+    document.head.appendChild(s);
+  }
+  window._chartReady = false;
+  tryLoad(0);
+})();
+</script>
 
 <script>
 // ======================== Fund Data APIs ========================
@@ -332,6 +351,10 @@ const charts = {};
 function renderChart(code, history) {
   const wrap = document.getElementById('chart-' + code);
   if (!wrap || !history || history.length < 2) return;
+  if (typeof Chart === 'undefined') {
+    wrap.innerHTML = '<div style="font-size:.8em;color:#999;text-align:center;padding:20px">走势图加载中（Chart.js 未载入）</div>';
+    return;
+  }
   // destroy existing
   if (charts[code]) { charts[code].destroy(); delete charts[code]; }
   const oldCv = wrap.querySelector('canvas');
@@ -368,6 +391,14 @@ function renderChart(code, history) {
     }
   });
 }
+
+// Chart.js loaded callback — re-render charts once CDN loads
+window._recharts = function() {
+  Object.entries(cache).forEach(([code, f]) => {
+    if (f.history && f.history.length >= 2) renderChart(code, f.history);
+  });
+};
+if (window._chartReady) window._recharts();
 
 // ======================== Core Logic ========================
 
