@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API调试</title>
+<style>
+body { font-family: sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; }
+input, button { font-size: 16px; padding: 8px 16px; }
+button { cursor: pointer; }
+.result { margin-top: 20px; white-space: pre-wrap; background: #f5f5f5; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 14px; }
+.green { color: green; } .red { color: red; }
+</style>
+</head>
+<body>
+<h2>基金API调试工具</h2>
+<p>测试天天基金JSONP + 东方财富历史数据</p>
+<input id="code" value="020640" placeholder="基金代码" size="10">
+<button onclick="runTest()">测试</button>
+<button onclick="testHistory()">测试历史数据</button>
+<div class="result" id="out">点击测试开始...</div>
+
+<script>
+function log(msg, cls) {
+  const out = document.getElementById('out');
+  out.innerHTML += `<div class="${cls||''}">${msg}</div>`;
+}
+
+function testEstimate(code) {
+  return new Promise((resolve, reject) => {
+    log(`[JSONP] 开始请求 ${code}...`);
+    const script = document.createElement('script');
+    let done = false;
+    const prev = window.jsonpgz;
+    window.jsonpgz = function(data) {
+      if (done) return;
+      done = true;
+      window.jsonpgz = prev;
+      script.remove();
+      log(`[JSONP] ✅ 收到响应: ${JSON.stringify(data)}`, 'green');
+      resolve(data);
+    };
+    script.src = `https://fundgz.1234567.com.cn/js/${code}.js?_=${Date.now()}`;
+    script.onerror = () => {
+      if (done) return;
+      done = true;
+      window.jsonpgz = prev;
+      script.remove();
+      log(`[JSONP] ❌ 网络错误`, 'red');
+      reject(new Error('网络错误'));
+    };
+    setTimeout(() => {
+      if (!done) {
+        done = true;
+        window.jsonpgz = prev;
+        script.remove();
+        log(`[JSONP] ⏰ 10秒超时`, 'red');
+        reject(new Error('超时'));
+      }
+    }, 10000);
+    document.head.appendChild(script);
+  });
+}
+
+function testHistory(code) {
+  return new Promise((resolve) => {
+    log(`[历史] 开始请求 ${code}...`);
+    const script = document.createElement('script');
+    let done = false;
+    script.src = `https://fund.eastmoney.com/pingzhongdata/${code}.js?v=${Date.now()}`;
+    script.onload = () => {
+      if (done) return;
+      done = true;
+      script.remove();
+      const raw = window.Data_netWorthTrend;
+      const name = window.fS_name || '未知';
+      log(`[历史] ✅ 基金名称: ${name}`, 'green');
+      if (raw && raw.length) {
+        log(`[历史] ✅ 获取到 ${raw.length} 条净值数据`, 'green');
+        log(`[历史] 最新: ${JSON.stringify(raw[raw.length-1])}`, 'green');
+        log(`[历史] 最早: ${JSON.stringify(raw[0])}`, 'green');
+      } else {
+        log(`[历史] ⚠️ Data_netWorthTrend 为空`, 'red');
+      }
+      resolve(raw || []);
+    };
+    script.onerror = () => {
+      if (done) return;
+      done = true;
+      script.remove();
+      log(`[历史] ❌ 网络错误`, 'red');
+      resolve([]);
+    };
+    setTimeout(() => {
+      if (!done) { done = true; script.remove(); log(`[历史] ⏰ 超时`, 'red'); resolve([]); }
+    }, 15000);
+    document.head.appendChild(script);
+  });
+}
+
+async function runTest() {
+  const code = document.getElementById('code').value.trim();
+  document.getElementById('out').innerHTML = '';
+  log(`===== 测试基金 ${code} =====`);
+  log(`时间: ${new Date().toLocaleString()}`);
+  log('');
+
+  try {
+    const est = await testEstimate(code);
+    log('');
+    log(`汇总: 名称=${est.name}, 净值=${est.dwjz}, 估算=${est.gsz}, 涨跌=${est.gszzl}%, 时间=${est.gztime}`, 'green');
+  } catch(e) {
+    log(`汇总: 估值获取失败 - ${e.message}`, 'red');
+  }
+}
+
+async function testHistory() {
+  const code = document.getElementById('code').value.trim();
+  document.getElementById('out').innerHTML = '';
+  log(`===== 测试历史数据 ${code} =====`);
+  log('');
+
+  try {
+    await testHistory(code);
+    log('');
+    log(`汇总: 历史数据获取完成`, 'green');
+  } catch(e) {
+    log(`汇总: 失败 - ${e.message}`, 'red');
+  }
+}
+</script>
+</body>
+</html>
