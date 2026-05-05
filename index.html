@@ -457,9 +457,9 @@ function drawSparkline(code, history, range) {
   const allVals = [...filtered.map(d => d.nav), upper, lower];
   const dataMin = Math.min(...allVals);
   const dataMax = Math.max(...allVals);
-  const range = dataMax - dataMin || 1;
+  const yRange = dataMax - dataMin || 1;
 
-  const toY = v => h - pad - ((v - dataMin) / range) * (h - pad - topPad);
+  const toY = v => h - pad - ((v - dataMin) / yRange) * (h - pad - topPad);
 
   const points = filtered.map((d, i) => {
     const x = pad + (i / (filtered.length - 1)) * (w - pad * 2);
