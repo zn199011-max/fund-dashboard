@@ -200,77 +200,187 @@ function matchFundCode(name) {
   return { code: '', cat: '其他' };
 }
 
-// Extract holdings from OCR text (handles multi-line fund names)
+// Extract holdings from OCR text - handles platform-specific formats
 function parseOCR(text, platform) {
   const holdings = [];
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const rawLines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // Pattern: a line ending with a number like XXXX.XX (value) possibly followed by ±XX.XX (daily change)
-  // Fund names often span 2 lines: name part 1 + name part 2 (fund type suffix)
+  // Pre-process: join continuation lines (fund names often split across 2 lines)
+  const lines = [];
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    // Skip noisy decoration/header lines
+    if (/^[<>[\]{}()（）«»「」『』【】@#$%^&*=+~|\\\/]+$/.test(line)) continue;
+    if (/^(我|持|全|股|债|混|名|基|曾|副|限时|实物|交易|定投|更多|市场|投资|基金|积存|金价|企|稳|班|雪|启|口|日|山|田|出|团|J|G|f|河|伟|亘|史|巴|E|工|招|附|弈|陆)/.test(line)) continue;
+    if (/^(基金销售|产品周报|基金经理|投资锦囊|市场解读|你关注的|DeepSeek)/.test(line)) continue;
+    lines.push(line);
+  }
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  // Gold/积存金 pattern for 京东金融
+  if (platform === '京东金融') {
+    parseGold(lines, holdings);
+    parseJDFunds(lines, holdings);
+  }
 
-    // Skip noise/header lines
-    if (/^(我|持|全|股|债|混|名|基|曾|副|[①②③④⑤⑥⑦⑧⑨⑩]|[<>$]{2,})/.test(line)) continue;
-    if (/^(基金|交易|限时|实物|黄金|积存|定投|更多|市场|投资|企|稳|金价)/.test(line)) continue;
-    if (line.length < 5) continue;
+  // Alipay fund list pattern
+  if (platform === '支付宝') {
+    parseAliFunds(lines, holdings);
+  }
 
-    // Look for a value: number with 2 decimal places (like 1184.25, 44602.25, 10103.31)
-    const valMatch = line.match(/(\d{1,3}(?:,\d{3})*\.\d{2})/);
-    if (!valMatch) continue;
+  return holdings;
+}
 
-    const valueStr = valMatch[1].replace(/,/g, '');
-    const value = parseFloat(valueStr);
-    if (value < 0.01 || value > 100000000) continue;
+function parseGold(lines, holdings) {
+  // Check if this screenshot looks like a gold/cash page (collapse spaces for OCR noise)
+  const fullText = lines.join('').replace(/\s+/g, '');
+  const hasGold = /积存金|黄金持仓/.test(fullText);
+  if (!hasGold) return;
 
-    // Try to extract fund name from this line and possibly previous line
-    const beforeVal = line.substring(0, line.indexOf(valueStr)).trim();
-    // Remove common suffixes and junk
-    let namePart = beforeVal.replace(/^[<{[(\s]*/, '').replace(/[\s]*$/, '');
+  let goldName = '积存金';
+  let goldValue = 0, goldCost = 0, goldWeight = 0, goldAvgPrice = 0;
 
-    // If this looks like a continuation line (starts with fund type suffix), combine with previous
-    const prevLine = i > 0 ? lines[i-1].trim() : '';
-    let fullName = '';
+  // Detect specific gold account
+  if (/浙商/.test(fullText)) goldName = '浙商积存金';
+  else if (/民生/.test(fullText)) goldName = '民生积存金';
 
-    if (/^(指数|ETF|混合|债券|联接|产业|发起|主题|股票|精选)/.test(namePart) && prevLine) {
-      // This is a continuation line - combine with previous
-      fullName = prevLine + namePart;
-    } else if (namePart && !/^[A-Z0-9\s.+\-%×()]+$/.test(namePart)) {
-      fullName = namePart;
-      // Check if next line is a continuation
-      if (i + 1 < lines.length) {
-        const nextLine = lines[i+1].trim();
-        if (/^(指数|ETF|混合|债券|联接|产业|发起|主题|股票|精选|积存)/.test(nextLine)) {
-          fullName += nextLine;
+  // Scan for value: "XX,XXX.XX 元" or "XX,XXX.XX元"
+  for (const line of lines) {
+    const cleaned = line.replace(/\s+/g, '');
+    // Value with 元: "44,602.25元"
+    let m = cleaned.match(/(\d{2,3}(?:,\d{3})*\.\d{2})元/);
+    if (m) {
+      const v = parseFloat(m[1].replace(/,/g, ''));
+      if (v > 1000 && v < 1e7) goldValue = Math.round(Math.max(goldValue, v));
+    }
+    // Weight: "43.9808"
+    m = cleaned.match(/(\d{2}\.\d{4})/);
+    if (m) {
+      const w = parseFloat(m[1]);
+      if (w > 1 && w < 1000) goldWeight = w;
+    }
+    // Average cost price: standalone "1,119.70" (around 100-5000 range)
+    m = cleaned.match(/(\d{1}(?:,\d{3})*\.\d{2})/g);
+    if (m && goldWeight > 0) {
+      for (const num of m) {
+        const v = parseFloat(num.replace(/,/g, ''));
+        if (v > 100 && v < 10000 && Math.abs(v * goldWeight - goldValue) < goldValue * 0.5) {
+          goldAvgPrice = v;
         }
       }
     }
+  }
 
-    if (!fullName || fullName.length < 3) continue;
+  // Calculate cost
+  if (goldWeight > 0 && goldAvgPrice > 0) {
+    goldCost = Math.round(goldWeight * goldAvgPrice);
+  }
 
-    // Clean up name
-    fullName = fullName
-      .replace(/[<>[\]()（）{}«»「」『』【】]/g, '')
-      .replace(/^[\s,.，。、]+/, '')
-      .replace(/[\s,.，。、]+$/, '')
-      .replace(/\s+/g, '')
-      .trim();
+  if (goldValue > 0) {
+    if (!goldCost || goldCost <= 0) goldCost = goldValue;
+    holdings.push({
+      platform: '京东金融',
+      fund: goldName,
+      code: '',
+      category: '其他',
+      value: goldValue,
+      cost: goldCost
+    });
+  }
+}
 
-    // Skip if name is too short or looks like noise
+function parseJDFunds(lines, holdings) {
+  // JD fund format: 2 lines per fund
+  // Line 1: fund name part 1 + value + daily gain
+  // Line 2: fund type suffix (QDII, ETF, 指数 etc.) + cost basis + holding rate
+  for (let i = 0; i < lines.length - 1; i++) {
+    const l1 = lines[i];
+    const l2 = lines[i + 1];
+
+    // Skip lines that are clearly not fund entries
+    if (/^(成交|交易|条件|明细|福利|实物|基金销)/.test(l1)) continue;
+    if (l1.length < 8) continue;
+
+    // Look for value: number with 2 decimal places, optionally with comma (like 1,184.25 or 2875.93)
+    const v1 = l1.match(/(\d{1,3}(?:,\d{3})*\.\d{2})/);
+    if (!v1) continue;
+
+    const value = parseFloat(v1[1].replace(/,/g, ''));
+    if (value < 10 || value > 1e7) continue;
+
+    // Fund name part 1 is before the value
+    const valIdx = l1.indexOf(v1[1]);
+    let name1 = l1.substring(0, valIdx).trim();
+    // Must have meaningful Chinese text
+    name1 = name1.replace(/^[<{[(\s\d.+\-×%@#°。，,、]+/, '').trim();
+    // Must contain at least some Chinese chars or recognizable fund keywords
+    if (!/[一-鿿]{2,}/.test(name1)) continue;
+    if (name1.length < 3) continue;
+
+    // Line 2 should be a fund type continuation or suffix
+    let name2 = l2.trim();
+    // Remove trailing numbers and special chars
+    name2 = name2.replace(/[\s]+\d.*$/, '');
+    name2 = name2.replace(/[<>\[\]()（）«»「」『』【】@XxVv]+/g, '').trim();
+
+    // Only combine if line 2 looks like a fund type suffix
+    if (!/^(指数|ETF|混合|债券|联接|产业|发起|主题|股票|精选|积存|QDII|QD)/.test(name2)) {
+      continue; // Not a continuation line, skip this pair
+    }
+
+    const fullName = name1 + name2;
+    if (fullName.length < 6) continue; // Fund name must be reasonably long
+    if (fullName.includes('积存金') || fullName.includes('条件单') || fullName.includes('交易记录')) continue;
+
+    const { code, cat } = matchFundCode(fullName);
+
+    holdings.push({
+      platform: '京东金融',
+      fund: fullName,
+      code,
+      category: cat,
+      value: Math.round(value),
+      cost: Math.round(value)
+    });
+  }
+}
+
+function parseAliFunds(lines, holdings) {
+  // Alipay format: 2 lines per fund
+  // Line 1: "fundNamePart1 value dailyGain"
+  // Line 2: "fundNamePart2 0.00 holdingReturnRate"
+  for (let i = 0; i < lines.length - 1; i++) {
+    const l1 = lines[i];
+    const l2 = lines[i + 1];
+
+    // Find value in line 1: number with 2 decimal places, possibly with comma
+    const v1 = l1.match(/(\d{1,3}(?:,\d{3})*\.\d{2})/);
+    if (!v1) continue;
+
+    const value = parseFloat(v1[1].replace(/,/g, ''));
+    if (value < 1 || value > 1e7) continue;
+
+    // Get fund name from before the value
+    const idx = l1.indexOf(v1[1]);
+    let name1 = l1.substring(0, idx).trim();
+    name1 = name1.replace(/^[<{[(\s\d.+\-×%@#]+/, '').trim();
+    if (name1.length < 2) continue;
+
+    // Line 2: fund type suffix (usually starts with Chinese chars not numbers)
+    let name2 = l2.trim();
+    // Remove numbers and following content
+    const numIdx = name2.search(/\d/);
+    if (numIdx > 0) name2 = name2.substring(0, numIdx).trim();
+    name2 = name2.replace(/[<>\[\]()（）«»「」『』【】@定投]+/g, '').trim();
+
+    const fullName = name1 + name2;
     if (fullName.length < 4) continue;
 
-    // Look for cost/gain info: ±XXXX.XX pattern
-    const gainMatch = line.match(/[+\-]\d{1,4}\.\d{2}/g);
-    const dailyGain = gainMatch ? parseFloat(gainMatch[0]) : 0;
-
-    // Estimate cost from holding P&L if available
-    // Try to find holding return rate on the same or next line
+    // Get holding return rate for cost estimation
+    const retMatch = l2.match(/([+\-]\d{1,2}\.\d{1,2})%/);
     let cost = value;
-    const holdRetMatch = line.match(/[+\-](\d{1,2}\.\d{1,2})%/);
-    if (holdRetMatch) {
-      const retPct = parseFloat(holdRetMatch[1]);
-      if (retPct > -100 && retPct < 1000) {
+    if (retMatch) {
+      const retPct = parseFloat(retMatch[1]);
+      if (Math.abs(retPct) < 100) {
         cost = Math.round(value / (1 + retPct / 100));
       }
     }
@@ -278,57 +388,77 @@ function parseOCR(text, platform) {
     const { code, cat } = matchFundCode(fullName);
 
     holdings.push({
-      platform,
+      platform: '支付宝',
       fund: fullName,
       code,
       category: cat,
       value: Math.round(value),
-      cost: cost !== value ? Math.round(cost) : Math.round(value)
+      cost
     });
   }
-
-  return holdings;
 }
 
-// OCR-based scan (no API key needed) - only adds new funds, never overwrites curated data
+// Clean up OCR noise from fund names
+function cleanFundName(name) {
+  return name
+    .replace(/\s+/g, '')           // Remove OCR-added spaces between chars
+    .replace(/[<>\[\]()（）{}«»「」『』【】@#$%^&*+=~|\\\/]+/g, '')
+    .replace(/^[.,，。、\d\s]+/, '')
+    .replace(/[.,，。、\d\s]+$/, '')
+    .replace(/0/g, '0')           // Common OCR errors: O→0
+    .replace(/QDI0/g, 'QDII')     // Fix QDII OCR error
+    .replace(/QDI(?![I])/g, 'QDII')
+    .replace(/ETF(?![联接发起])/g, 'ETF')
+    .trim();
+}
+
+// OCR-based scan - fully rebuilds from screenshots
 function ocrScanAll() {
   const screenshots = scanScreenshots();
-  const existing = readJSON(DATA_FILE, { holdings: [], updated: '' });
-
-  // Build set of existing fund key fragments for dedup
-  const existingKeys = existing.holdings.map(h =>
-    (h.platform + '|' + h.fund + '|' + (h.code || '')).toLowerCase()
-  );
+  const allHoldings = [];
+  const seen = new Set();
 
   for (const [platform, info] of Object.entries(screenshots.platforms)) {
     for (const f of info.files) {
       const text = ocrImage(f.path);
-      const ocrHoldings = parseOCR(text, platform);
-      for (const h of ocrHoldings) {
-        // Only add if genuinely new (no existing fund with same platform and overlapping name)
-        const hKey = (h.platform + '|' + h.fund).toLowerCase();
-        const isNew = !existingKeys.some(ek => {
-          const parts = ek.split('|');
-          const ekPlat = parts[0], ekFund = parts[1];
-          if (ekPlat !== h.platform.toLowerCase()) return false;
-          // Check significant overlap
-          const minLen = Math.min(h.fund.length, ekFund.length);
-          if (minLen < 5) return false;
-          const substr = h.fund.substring(0, Math.min(6, h.fund.length)).toLowerCase();
-          return ekFund.includes(substr) || h.fund.toLowerCase().includes(ekFund.substring(0, Math.min(6, ekFund.length)));
-        });
-        if (isNew && h.fund.length >= 4 && h.value > 0) {
-          existing.holdings.push(h);
-          existingKeys.push(hKey + '|' + (h.code || ''));
+      const holdings = parseOCR(text, platform);
+      for (const h of holdings) {
+        // Clean fund name
+        h.fund = cleanFundName(h.fund);
+        if (h.fund.length < 4 || h.value <= 0) continue;
+
+        // Re-match fund code with cleaned name
+        const { code, cat } = matchFundCode(h.fund);
+        if (code && !h.code) h.code = code;
+        if (cat !== '其他' && h.category === '其他') h.category = cat;
+
+        const key = (h.platform + '|' + h.fund.substring(0, 15)).toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          allHoldings.push(h);
         }
       }
     }
   }
 
-  existing.updated = new Date().toLocaleString('zh-CN');
-  existing.lastScan = screenshots.scannedAt;
-  writeJSON(DATA_FILE, existing);
-  return existing;
+  // If OCR found too few holdings (<3), keep existing data
+  if (allHoldings.length < 3) {
+    const existing = readJSON(DATA_FILE, { holdings: [], updated: '' });
+    if (existing.holdings.length >= 3) {
+      console.log('OCR found only', allHoldings.length, 'holdings, keeping existing', existing.holdings.length);
+      existing.lastScan = screenshots.scannedAt;
+      return existing;
+    }
+  }
+
+  const data = {
+    holdings: allHoldings,
+    updated: new Date().toLocaleString('zh-CN'),
+    lastScan: screenshots.scannedAt
+  };
+  writeJSON(DATA_FILE, data);
+  console.log('OCR scan: found', allHoldings.length, 'holdings from', screenshots.total, 'screenshots');
+  return data;
 }
 
 // Request handler
