@@ -126,6 +126,16 @@ body {
 .spark-wrap { height: 70px; position: relative; }
 .spark-wrap svg { width: 100%; height: 100%; }
 
+/* Time range tabs */
+.time-tabs { display: flex; gap: 4px; margin-bottom: 2px; }
+.time-tab {
+  padding: 2px 10px; border-radius: 10px; border: 1px solid var(--border);
+  background: #fff; font-size: .7em; cursor: pointer; transition: all .12s;
+  font-family: inherit; color: var(--sub);
+}
+.time-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.time-tab:hover:not(.active) { background: #f1f5f9; }
+
 /* Score bar */
 .score-row {
   display: flex; align-items: center; gap: 8px; font-size: .75em;
@@ -383,11 +393,23 @@ function calcScore(fund) {
 }
 
 // ======================== Sparkline ========================
-function drawSparkline(code, history) {
+const timeRanges = { '1月': 22, '3月': 66, '6月': 132, '1年': 264, '全部': 0 };
+const currentRange = {};
+
+function filterHistory(history, range) {
+  if (!history || !history.length) return [];
+  const days = timeRanges[range] || 132;
+  if (!days) return history;
+  return history.slice(Math.max(0, history.length - days));
+}
+
+function drawSparkline(code, history, range) {
+  range = range || currentRange[code] || '6月';
+  currentRange[code] = range;
   const wrap = document.getElementById('spark-' + code);
   if (!wrap || !history || history.length < 5) return;
-  const filtered = history.slice(-132); // last ~6 months
-  if (filtered.length < 5) return;
+  const filtered = filterHistory(history, range);
+  if (filtered.length < 2) return;
 
   const w = 300, h = 70, pad = 4, topPad = 10;
 
@@ -439,6 +461,19 @@ function drawSparkline(code, history) {
   </svg>`;
 }
 
+
+function switchRange(code, range) {
+  const fund = cache[code];
+  if (!fund || !fund.history) return;
+  const tabs = document.getElementById('tabs-' + code);
+  if (tabs) {
+    tabs.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
+    const target = Array.from(tabs.querySelectorAll('.time-tab'))
+      .find(t => t.textContent === range);
+    if (target) target.classList.add('active');
+  }
+  drawSparkline(code, fund.history, range);
+}
 // ======================== Render ========================
 const F = n => n != null && !isNaN(n) ? Number(n).toFixed(2) : '--';
 const P = n => n != null && !isNaN(n) ? (n >= 0 ? '+' : '') + n.toFixed(2) + '%' : '--';
@@ -516,6 +551,11 @@ function renderCard(fund) {
 
       ${peBar}
       <div class="rets">${retTags}</div>
+      <div class="time-tabs" id="tabs-${fund.code}">
+        ${['1月','3月','6月','1年','全部'].map(r =>
+          `<button class="time-tab${r==='6月'?' active':''}" onclick="switchRange('${fund.code}','${r}')">${r}</button>`
+        ).join('')}
+      </div>
       <div class="spark-wrap" id="spark-${fund.code}"></div>
 
       <div class="score-row">
