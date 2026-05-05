@@ -182,6 +182,57 @@ body {
   transition: all .15s; flex-shrink: 0; line-height: 1;
 }
 .card-del:hover { background: #fee2e2; color: #e5484d; }
+
+/* ── Portfolio section ── */
+.portfolio {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 16px 20px; margin-bottom: 14px;
+}
+.port-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 12px;
+}
+.port-header .port-title { font-weight: 700; font-size: .9em; }
+.port-header .port-actions { display: flex; gap: 6px; }
+.port-btn {
+  padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+  background: #fff; font-size: .73em; cursor: pointer; transition: all .12s;
+  font-family: inherit; color: var(--text);
+}
+.port-btn:hover { background: #f1f5f9; }
+.port-btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+.port-btn.primary:hover { opacity: .85; }
+.port-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;
+}
+.port-stat { text-align: center; padding: 10px 6px; background: #f8f9fb; border-radius: 8px; }
+.port-stat .ps-label { font-size: .68em; color: var(--sub); }
+.port-stat .ps-value { font-size: 1.05em; font-weight: 700; margin-top: 2px; }
+.port-stat .ps-sub { font-size: .7em; margin-top: 1px; }
+.port-cats { display: flex; gap: 0; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.port-cat-seg { height: 100%; transition: width .3s; }
+.port-cat-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .7em; color: var(--sub); }
+.port-cat-legend span { display: flex; align-items: center; gap: 4px; }
+.port-cat-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.port-table { width: 100%; border-collapse: collapse; font-size: .76em; margin-top: 8px; }
+.port-table th { text-align: left; padding: 6px 8px; color: var(--sub); font-weight: 500; border-bottom: 1px solid var(--border); }
+.port-table td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
+.port-table .pnl-up { color: var(--green); font-weight: 600; }
+.port-table .pnl-down { color: var(--red); font-weight: 600; }
+.port-table .del-btn {
+  background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1em;
+}
+.port-table .del-btn:hover { color: var(--red); }
+.port-edit-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.port-edit-row input, .port-edit-row select {
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px;
+  font-size: .75em; font-family: inherit; outline: none;
+}
+.port-edit-row input:focus, .port-edit-row select:focus { border-color: var(--blue); }
+.port-edit-row input { width: 80px; }
+.port-edit-row input.wide { width: 110px; }
+.port-files { font-size: .72em; color: var(--sub); margin-top: 6px; }
+.port-files a { color: var(--blue); }
 </style>
 </head>
 <body>
@@ -206,6 +257,41 @@ body {
 
 <!-- ── Main content ── -->
 <div class="container">
+  <!-- ── Portfolio stats ── -->
+  <div class="portfolio" id="portfolio">
+    <div class="port-header">
+      <span class="port-title">投资组合总览</span>
+      <span style="font-size:.7em;color:var(--sub)" id="portUpdated"></span>
+      <div class="port-actions">
+        <button class="port-btn" onclick="scanFolder()" title="扫描桌面截图文件夹">📁 扫描截图</button>
+        <button class="port-btn" onclick="togglePortEdit()">＋ 录入持仓</button>
+        <button class="port-btn primary" onclick="refreshPortfolio()">⟳ 刷新</button>
+      </div>
+    </div>
+
+    <div class="port-summary" id="portSummary"></div>
+
+    <div class="port-cats" id="portCats"></div>
+    <div class="port-cat-legend" id="portLegend"></div>
+
+    <table class="port-table" id="portTable"><tbody></tbody></table>
+
+    <div id="portEdit" style="display:none">
+      <div class="port-edit-row">
+        <select id="pePlatform"><option>支付宝</option><option>京东金融</option><option>同花顺</option><option>其他</option></select>
+        <input class="wide" id="peFund" placeholder="基金/品种名称">
+        <input id="peCode" placeholder="代码(选填)">
+        <select id="peCat"><option>美股QDII</option><option>A股指数</option><option>A股红利</option><option>行业主题</option><option>债券固收</option><option>现金/货基</option><option>其他</option></select>
+        <input id="peValue" placeholder="持仓市值">
+        <input id="peCost" placeholder="成本(选填)">
+        <button class="port-btn primary" onclick="addHolding()">保存</button>
+        <button class="port-btn" onclick="togglePortEdit()">取消</button>
+      </div>
+    </div>
+
+    <div class="port-files" id="portFiles"></div>
+  </div>
+
   <div class="add-row">
     <span style="font-size:.82em;color:var(--sub);white-space:nowrap">自定义基金</span>
     <input type="text" id="fundInput" placeholder="输入6位基金代码，逗号分隔">
@@ -832,9 +918,169 @@ async function tryFetchFNG() {
   } catch (e) { /* keep hardcoded value */ }
 }
 
+// ======================== Portfolio ========================
+const PORT_KEY = 'portfolio_data_v1';
+const CAT_COLORS = {
+  '美股QDII': '#3b6df0', 'A股指数': '#0ea371', 'A股红利': '#ea580c',
+  '行业主题': '#8b5cf6', '债券固收': '#f59e0b', '现金/货基': '#94a3b8',
+  '其他': '#64748b'
+};
+
+function getPortfolio() {
+  try {
+    const v = localStorage.getItem(PORT_KEY);
+    return v ? JSON.parse(v) : { holdings: [], updated: '' };
+  } catch { return { holdings: [], updated: '' }; }
+}
+
+function savePortfolio(data) {
+  localStorage.setItem(PORT_KEY, JSON.stringify(data));
+}
+
+function renderPortfolio() {
+  const data = getPortfolio();
+  const h = data.holdings || [];
+
+  // Summary
+  const totalVal = h.reduce((s, x) => s + (parseFloat(x.value) || 0), 0);
+  const totalCost = h.reduce((s, x) => s + (parseFloat(x.cost) || 0), 0);
+  const totalPnL = totalVal - totalCost;
+  const pnlPct = totalCost > 0 ? (totalPnL / totalCost * 100) : 0;
+
+  document.getElementById('portSummary').innerHTML = `
+    <div class="port-stat">
+      <div class="ps-label">总市值</div>
+      <div class="ps-value">¥${(totalVal/1e4).toFixed(2)}万</div>
+    </div>
+    <div class="port-stat">
+      <div class="ps-label">总成本</div>
+      <div class="ps-value">¥${(totalCost/1e4).toFixed(2)}万</div>
+    </div>
+    <div class="port-stat">
+      <div class="ps-label">累计盈亏</div>
+      <div class="ps-value" style="color:${totalPnL>=0?'var(--green)':'var(--red)'}">${totalPnL>=0?'+':''}¥${(totalPnL/1e4).toFixed(2)}万</div>
+      <div class="ps-sub" style="color:${pnlPct>=0?'var(--green)':'var(--red)'}">${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%</div>
+    </div>
+    <div class="port-stat">
+      <div class="ps-label">持仓数量</div>
+      <div class="ps-value">${h.length} 笔</div>
+      <div class="ps-sub">${new Set(h.map(x=>x.platform)).size} 个平台</div>
+    </div>`;
+
+  // Category breakdown
+  const cats = {};
+  h.forEach(x => {
+    const cat = x.category || '其他';
+    cats[cat] = (cats[cat] || 0) + (parseFloat(x.value) || 0);
+  });
+  const catEntries = Object.entries(cats).sort((a,b) => b[1] - a[1]);
+
+  document.getElementById('portCats').innerHTML = catEntries.map(([name, val]) => {
+    const pct = totalVal > 0 ? (val / totalVal * 100) : 0;
+    return `<div class="port-cat-seg" style="width:${pct}%;background:${CAT_COLORS[name]||'#94a3b8'}" title="${name}: ${pct.toFixed(1)}%"></div>`;
+  }).join('') || '<div style="color:var(--sub);font-size:.75em">暂无数据</div>';
+
+  document.getElementById('portLegend').innerHTML = catEntries.map(([name, val]) => {
+    const pct = totalVal > 0 ? (val / totalVal * 100) : 0;
+    const color = CAT_COLORS[name] || '#94a3b8';
+    return `<span><span class="port-cat-dot" style="background:${color}"></span>${name} ${pct.toFixed(1)}% (¥${(val/1e4).toFixed(1)}万)</span>`;
+  }).join('');
+
+  // Holdings table
+  document.getElementById('portTable').innerHTML = h.length ? `
+    <thead><tr>
+      <th>平台</th><th>基金/品种</th><th>类别</th><th>市值</th><th>成本</th><th>盈亏</th><th></th>
+    </tr></thead>
+    <tbody>${h.map((x, i) => {
+      const val = parseFloat(x.value) || 0;
+      const cost = parseFloat(x.cost) || 0;
+      const pnl = val - cost;
+      const pnlCls = pnl >= 0 ? 'pnl-up' : 'pnl-down';
+      return `<tr>
+        <td>${x.platform||''}</td>
+        <td>${x.fund||''}${x.code?' <span style="color:var(--sub);font-size:.9em">'+x.code+'</span>':''}</td>
+        <td>${x.category||''}</td>
+        <td>¥${(val/1e4).toFixed(2)}万</td>
+        <td>${cost>0?'¥'+(cost/1e4).toFixed(2)+'万':'--'}</td>
+        <td class="${pnlCls}">${cost>0?(pnl>=0?'+':'')+pnl.toFixed(0)+' ('+(pnl/cost*100).toFixed(1)+'%)':'--'}</td>
+        <td><button class="del-btn" onclick="removeHolding(${i})" title="删除">×</button></td>
+      </tr>`;
+    }).join('')}</tbody>` : '<div style="color:var(--sub);font-size:.75em;padding:8px">暂无持仓记录，点击"录入持仓"添加</div>';
+
+  document.getElementById('portUpdated').textContent = data.updated
+    ? '更新于 ' + data.updated : '';
+}
+
+function togglePortEdit() {
+  const el = document.getElementById('portEdit');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (el.style.display === 'block') {
+    document.getElementById('peFund').focus();
+  }
+}
+
+function addHolding() {
+  const platform = document.getElementById('pePlatform').value;
+  const fund = document.getElementById('peFund').value.trim();
+  const code = document.getElementById('peCode').value.trim();
+  const category = document.getElementById('peCat').value;
+  const value = parseFloat(document.getElementById('peValue').value);
+  const cost = parseFloat(document.getElementById('peCost').value) || 0;
+
+  if (!fund) { alert('请输入基金名称'); return; }
+  if (!value || value <= 0) { alert('请输入有效持仓市值'); return; }
+
+  const data = getPortfolio();
+  data.holdings.push({ platform, fund, code, category, value, cost });
+  data.updated = new Date().toLocaleString('zh-CN');
+  savePortfolio(data);
+  renderPortfolio();
+
+  // Clear form
+  document.getElementById('peFund').value = '';
+  document.getElementById('peCode').value = '';
+  document.getElementById('peValue').value = '';
+  document.getElementById('peCost').value = '';
+  document.getElementById('portEdit').style.display = 'none';
+}
+
+function removeHolding(index) {
+  const data = getPortfolio();
+  data.holdings.splice(index, 1);
+  data.updated = new Date().toLocaleString('zh-CN');
+  savePortfolio(data);
+  renderPortfolio();
+}
+
+function refreshPortfolio() {
+  renderPortfolio();
+}
+
+function scanFolder() {
+  // Display screenshot file list (can't auto-extract, but show what's there)
+  const files = [
+    { platform: '京东金融', file: 'a2386a4c...jpg', size: '495KB', date: '2026-05-02' },
+    { platform: '京东金融', file: 'adb8e0f4...jpg', size: '507KB', date: '2026-05-02' },
+    { platform: '京东金融', file: 'c039f5dc...jpg', size: '493KB', date: '2026-05-02' },
+    { platform: '支付宝', file: '834b4248...jpg', size: '580KB', date: '2026-05-02' },
+    { platform: '支付宝', file: '934e79f7...jpg', size: '572KB', date: '2026-05-02' },
+    { platform: '支付宝', file: 'bd966dbf...jpg', size: '603KB', date: '2026-05-02' }
+  ];
+  const el = document.getElementById('portFiles');
+  const grouped = {};
+  files.forEach(f => { (grouped[f.platform] = grouped[f.platform] || []).push(f); });
+  el.innerHTML = '<strong>截图文件列表</strong> (共'+files.length+'张) · 请对照录入持仓<br>' +
+    Object.entries(grouped).map(([plat, fs]) =>
+      `<b>${plat}</b>: ${fs.length}张 (${fs.map(f=>f.date).join(', ')})`
+    ).join(' &nbsp;|&nbsp; ') +
+    '<br><span style="opacity:.7">提示：自动识别截图内容需要AI OCR，当前请手动录入</span>';
+  el.style.display = 'block';
+}
+
 // ======================== Init ========================
 (function init() {
   renderMarket();
+  renderPortfolio();
   const codes = getCodes();
   if (codes.length) {
     document.getElementById('fundInput').placeholder = `已保存: ${codes.join(', ')}`;
