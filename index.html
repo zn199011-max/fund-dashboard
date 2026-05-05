@@ -231,8 +231,8 @@ const MARKET = {
   fcfePE: 16.1, fcfePct: 65  // 国证自由现金流
 };
 
-function getFundPE(code, fundName, apiPE) {
-  // 1. Exact code match for default funds
+function getFundPE(code, fundName) {
+  // 1. Exact code match
   const codeMap = {
     '040046': { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' },
     '050025': { pe: 24.6, pct: 92, label: '标普500' },
@@ -242,42 +242,74 @@ function getFundPE(code, fundName, apiPE) {
   };
   if (codeMap[code]) return codeMap[code];
 
-  // 2. Keyword match from fund name (supports any manually added index fund)
-  const name = (fundName || '').toUpperCase();
+  // 2. Keyword match from fund name
+  const n = (fundName || code || '').toUpperCase();
   const kw = [
+    // US & global
     { keys: ['纳斯达克','纳指','NASDAQ','NDX'], pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' },
-    { keys: ['标普','标准普尔','S&P','SP500','S&P500'], pe: 24.6, pct: 92, label: '标普500' },
-    { keys: ['A500','中证A500'], pe: MARKET.a500PE, pct: MARKET.a500Pct, label: '中证A500' },
-    { keys: ['红利低波','中证红利低波'], pe: MARKET.divPE, pct: MARKET.divPct, label: '红利低波' },
-    { keys: ['自由现金流','FCF','国证自由现金流'], pe: MARKET.fcfePE, pct: MARKET.fcfePct, label: '自由现金流' },
-    { keys: ['沪深300','HS300'], pe: 13.5, pct: 55, label: '沪深300' },
-    { keys: ['中证500','ZZ500'], pe: 22.3, pct: 48, label: '中证500' },
-    { keys: ['创业板指','创业板','GEM'], pe: 35.2, pct: 28, label: '创业板指' },
-    { keys: ['科创50','科创板50','STAR50'], pe: 52.1, pct: 42, label: '科创50' },
-    { keys: ['中证红利','红利指数','CSIH'], pe: 7.8, pct: 65, label: '中证红利' },
-    { keys: ['恒生','HSI','恒指'], pe: 10.2, pct: 40, label: '恒生指数' },
-    { keys: ['日经','NIKKEI','NKY'], pe: 19.5, pct: 62, label: '日经225' },
-    { keys: ['德国DAX','DAX'], pe: 15.1, pct: 55, label: '德国DAX' },
+    { keys: ['标普','标准普尔','S&P','SP500','S&P500','普尔'], pe: 24.6, pct: 92, label: '标普500' },
+    { keys: ['道琼斯','道指','DJIA'], pe: 22.1, pct: 80, label: '道琼斯' },
+    { keys: ['罗素','RUSSELL','RUT'], pe: 29.5, pct: 75, label: '罗素2000' },
+    // A-share broad
+    { keys: ['A500','中证A50'], pe: MARKET.a500PE, pct: MARKET.a500Pct, label: '中证A500' },
+    { keys: ['沪深300','HS300','300ETF'], pe: 13.5, pct: 55, label: '沪深300' },
+    { keys: ['中证500','ZZ500','500ETF'], pe: 22.3, pct: 48, label: '中证500' },
+    { keys: ['中证800','ZZ800'], pe: 14.5, pct: 52, label: '中证800' },
+    { keys: ['中证1000','ZZ1000','1000ETF'], pe: 28.7, pct: 45, label: '中证1000' },
+    { keys: ['中证2000','ZZ2000','2000ETF'], pe: 45.2, pct: 55, label: '中证2000' },
+    { keys: ['上证50','SZ50','上证50ETF'], pe: 11.0, pct: 58, label: '上证50' },
+    { keys: ['上证180','SZ180'], pe: 12.1, pct: 55, label: '上证180' },
+    { keys: ['深证100','SZ100'], pe: 21.5, pct: 52, label: '深证100' },
+    { keys: ['创业板指','创业板','GEM','CYB'], pe: 35.2, pct: 28, label: '创业板指' },
+    { keys: ['科创50','科创板50','STAR50','科创'], pe: 52.1, pct: 42, label: '科创50' },
+    { keys: ['科创100','STAR100'], pe: 68.3, pct: 38, label: '科创100' },
+    { keys: ['北证50','北交所'], pe: 32.5, pct: 65, label: '北证50' },
+    // Strategy / factor
+    { keys: ['红利低波','中证红利低波','红利LV'], pe: MARKET.divPE, pct: MARKET.divPct, label: '红利低波' },
+    { keys: ['自由现金流','FCF'], pe: MARKET.fcfePE, pct: MARKET.fcfePct, label: '自由现金流' },
+    { keys: ['中证红利','红利指数','CSIH','红利ETF'], pe: 7.8, pct: 65, label: '中证红利' },
+    { keys: ['红利质量'], pe: 11.2, pct: 58, label: '红利质量' },
+    { keys: ['价值100','国证价值'], pe: 11.4, pct: 62, label: '国证价值100' },
+    { keys: ['质量成长'], pe: 22.5, pct: 55, label: '质量成长' },
+    // HK & overseas
+    { keys: ['恒生','HSI','恒指','香港','港股通'], pe: 10.2, pct: 40, label: '恒生指数' },
+    { keys: ['恒生科技','HSTECH','恒科'], pe: 20.1, pct: 38, label: '恒生科技' },
+    { keys: ['H股','国企指数','HSCEI'], pe: 9.5, pct: 45, label: 'H股指数' },
+    { keys: ['日经','NIKKEI','NKY','日本'], pe: 19.5, pct: 62, label: '日经225' },
+    { keys: ['德国DAX','DAX','德国'], pe: 15.1, pct: 55, label: '德国DAX' },
     { keys: ['印度','NIFTY','SENSEX'], pe: 23.8, pct: 72, label: '印度Nifty' },
     { keys: ['越南','VN30'], pe: 12.3, pct: 35, label: '越南VN30' },
+    { keys: ['富时','FTSE'], pe: 14.2, pct: 60, label: '富时100' },
+    { keys: ['MSCI','MSCI中国','明晟'], pe: 13.8, pct: 50, label: 'MSCI中国' },
+    // Sectors
+    { keys: ['证券','券商','证券公司'], pe: 20.5, pct: 42, label: '证券公司' },
+    { keys: ['银行','中证银行'], pe: 5.8, pct: 55, label: '中证银行' },
+    { keys: ['保险'], pe: 11.2, pct: 48, label: '保险主题' },
+    { keys: ['白酒','中证白酒'], pe: 25.1, pct: 35, label: '中证白酒' },
+    { keys: ['消费','消费龙头','消费50'], pe: 25.8, pct: 55, label: '消费龙头' },
+    { keys: ['医药','医疗','医药卫生','中证医疗'], pe: 33.2, pct: 22, label: '医药卫生' },
+    { keys: ['芯片','半导体','集成电路'], pe: 58.3, pct: 45, label: '芯片产业' },
+    { keys: ['新能源','新能源车','光伏','锂电'], pe: 22.8, pct: 25, label: '新能源' },
+    { keys: ['军工','国防','中证军工'], pe: 55.6, pct: 38, label: '中证军工' },
+    { keys: ['煤炭','中证煤炭'], pe: 9.5, pct: 72, label: '中证煤炭' },
+    { keys: ['电力','电力ETF','绿色电力'], pe: 16.2, pct: 58, label: '电力指数' },
+    { keys: ['有色','有色金属'], pe: 18.5, pct: 42, label: '有色金属' },
+    { keys: ['房地产','地产','REITS'], pe: 12.8, pct: 35, label: '房地产' },
+    { keys: ['传媒','中证传媒'], pe: 35.2, pct: 48, label: '中证传媒' },
+    { keys: ['科技','科技龙头','TMT'], pe: 32.5, pct: 52, label: '科技龙头' },
+    { keys: ['人工智能','AI','机器人'], pe: 48.2, pct: 55, label: '人工智能' },
+    // Non-equity
     { keys: ['黄金','GOLD','AU'], pe: null, pct: null, label: '黄金(无PE)' },
-    { keys: ['债券','债','BOND','国债','利率债','信用债'], pe: null, pct: null, label: '债券(无PE)' }
+    { keys: ['债券','债','BOND','国债','利率债','信用债','转债'], pe: null, pct: null, label: '债券(无PE)' },
+    { keys: ['货币','货币基金','货基'], pe: null, pct: null, label: '货币(无PE)' },
+    { keys: ['REIT','REITs','房地产信托'], pe: null, pct: null, label: 'REITs(无PE)' }
   ];
   for (const entry of kw) {
     for (const key of entry.keys) {
-      if (name.includes(key)) {
+      if (n.includes(key)) {
         return { pe: entry.pe, pct: entry.pct, label: entry.label };
       }
     }
-  }
-
-  // 3. Fallback to Eastmoney API data
-  if (apiPE && (apiPE.pe != null || apiPE.pct != null)) {
-    return {
-      pe: apiPE.pe != null ? apiPE.pe : null,
-      pct: apiPE.pct != null ? apiPE.pct : null,
-      label: '基金PE'
-    };
   }
   return null;
 }
@@ -369,7 +401,7 @@ function calcScore(fund) {
   const reasons = [];
 
   // --- Fund factors (±30) ---
-  const peInfo = getFundPE(fund.code, fund.name, fund.apiPE);
+  const peInfo = getFundPE(fund.code, fund.name);
   if (peInfo && peInfo.pct != null) {
     if (peInfo.pct < 20) { score += 15; reasons.push('PE极度低估'); }
     else if (peInfo.pct < 35) { score += 10; reasons.push('PE较低'); }
@@ -523,7 +555,7 @@ const Pc = n => n != null ? (n > 0 ? 'var(--green)' : n < 0 ? 'var(--red)' : '')
 function renderCard(fund) {
   const sig = calcScore(fund);
   const up = fund.changePct > 0, down = fund.changePct < 0;
-  const peInfo = getFundPE(fund.code, fund.name, fund.apiPE);
+  const peInfo = getFundPE(fund.code, fund.name);
   const rets = fund.returns || {};
 
   const retTags = ['1月','3月','6月','1年']
@@ -537,10 +569,11 @@ function renderCard(fund) {
   const peBar = (() => {
     const label = peInfo?.label || 'PE';
     if (peInfo && peInfo.pct != null) {
+      const dc = peInfo.pct >= 70 ? 'var(--red)' : peInfo.pct >= 40 ? 'var(--amber)' : 'var(--green)';
       return `
     <div class="pe-row">
       <span class="pe-label">${label}分位</span>
-      <div class="pe-track"><div class="pe-dot" style="left:${peInfo.pct}%"></div></div>
+      <div class="pe-track"><div class="pe-dot" style="left:${peInfo.pct}%;border-color:${dc}"></div></div>
       <span class="pe-val">${peInfo.pct}% (PE ${F(peInfo.pe)})</span>
     </div>`;
     }
@@ -551,7 +584,6 @@ function renderCard(fund) {
       <span class="pe-val" style="color:var(--sub)">不适用</span>
     </div>`;
     }
-    // No PE info yet — show placeholder bar, API data may arrive on next refresh
     return `
     <div class="pe-row">
       <span class="pe-label">PE分位</span>
@@ -642,26 +674,6 @@ function getCodes() {
 }
 function saveCodes(codes) { localStorage.setItem(KEY, JSON.stringify(codes)); }
 
-async function fetchFundPE(code) {
-  // Try Eastmoney fund info API for PE/PB data
-  try {
-    const r = await fetch(`https://api.fund.eastmoney.com/f10/FundTradeInfo?fundcode=${code}`, {
-      headers: { Referer: 'https://fund.eastmoney.com/' }
-    });
-    if (!r.ok) return null;
-    const j = await r.json();
-    const d = j?.Data;
-    if (!d) return null;
-    return {
-      pe: d.PE != null ? parseFloat(d.PE) : null,
-      pct: d.PEPercentile != null ? parseFloat(d.PEPercentile) : null,
-      pb: d.PB != null ? parseFloat(d.PB) : null,
-      pctPB: d.PBPercentile != null ? parseFloat(d.PBPercentile) : null,
-      size: d.FundSize || null
-    };
-  } catch (e) { return null; }
-}
-
 async function loadFund(code) {
   let est = null;
   try { est = await fetchEstimate(code); } catch (e) { /* */ }
@@ -675,10 +687,6 @@ async function loadFund(code) {
     s6y = result.s6y != null ? parseFloat(result.s6y) : null;
   } catch (e) { /* */ }
 
-  // Try to get PE data from Eastmoney API (non-blocking)
-  let apiPE = null;
-  try { apiPE = await fetchFundPE(code); } catch (e) { /* */ }
-
   const fund = {
     code, name,
     dwjz: est?.dwjz || null,
@@ -690,8 +698,7 @@ async function loadFund(code) {
     maxDd: calcMaxDrawdown(historyData),
     deviation: calcDeviation(historyData),
     s1n, s6y,
-    history: historyData,
-    apiPE // Eastmoney PE data fallback
+    history: historyData
   };
   cache[code] = fund;
   return fund;
