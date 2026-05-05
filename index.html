@@ -288,7 +288,7 @@ function fetchEstimate(code) {
     };
     setTimeout(() => {
       if (!done) { done = true; window.jsonpgz = prev; script.remove(); reject(new Error('timeout')); }
-    }, 10000);
+    }, 6000);
     document.head.appendChild(script);
   });
 }
@@ -314,7 +314,7 @@ function fetchHistory(code) {
       } else finish({ data: [], name:'', s1n:null, s6y:null, s3y:null, s1y:null });
     };
     script.onerror = () => finish({ data:[], name:'', s1n:null, s6y:null, s3y:null, s1y:null });
-    setTimeout(() => finish({ data:[], name:'', s1n:null, s6y:null, s3y:null, s1y:null }), 15000);
+    setTimeout(() => finish({ data:[], name:'', s1n:null, s6y:null, s3y:null, s1y:null }), 8000);
     document.head.appendChild(script);
   });
 }
@@ -677,17 +677,40 @@ async function refreshAll() {
   document.getElementById('loadingMsg').innerHTML = '加载中...';
   renderMarket();
 
+  // Create placeholder cards immediately so user sees layout
+  const placeholders = codes.map(c => ({ code: c, name: '加载中...', history: [] }));
+  renderAll(placeholders);
+
+  // Incremental loading — each fund renders as it arrives
   const funds = [];
   for (let i = 0; i < codes.length; i++) {
     document.getElementById('loadingMsg').innerHTML =
       `加载中 ${codes[i]} (${i + 1}/${codes.length})...`;
-    funds.push(await loadFund(codes[i]));
+    const fund = await loadFundWithTimeout(codes[i]);
+    funds.push(fund);
+    // Incremental render
+    const merged = codes.map(c => {
+      const loaded = funds.find(f => f.code === c);
+      return loaded || { code: c, name: c, history: [] };
+    });
+    renderAll(merged);
   }
-  renderAll(funds);
+
+  document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('updateTime').textContent =
     '更新 ' + new Date().toLocaleString('zh-CN');
   document.getElementById('cacheHint').textContent =
     '已保存: ' + codes.join(', ');
+}
+
+function loadFundWithTimeout(code) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      resolve({ code, name: code + ' 超时', history: [], dwjz: null, gsz: null,
+        changePct: null, jzrq: null, returns: {}, maxDd: null, deviation: null });
+    }, 10000);
+    loadFund(code).then(f => { clearTimeout(timer); resolve(f); });
+  });
 }
 
 async function addFunds() {
