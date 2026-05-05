@@ -217,8 +217,8 @@ body {
 .port-table { width: 100%; border-collapse: collapse; font-size: .76em; margin-top: 8px; }
 .port-table th { text-align: left; padding: 6px 8px; color: var(--sub); font-weight: 500; border-bottom: 1px solid var(--border); }
 .port-table td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; }
-.port-table .pnl-up { color: var(--green); font-weight: 600; }
-.port-table .pnl-down { color: var(--red); font-weight: 600; }
+.port-table .pnl-up { color: var(--red); font-weight: 600; }
+.port-table .pnl-down { color: var(--green); font-weight: 600; }
 .port-table .del-btn {
   background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1em;
 }
@@ -274,6 +274,7 @@ body {
 
     <div class="port-cats" id="portCats"></div>
     <div class="port-cat-legend" id="portLegend"></div>
+    <div id="portPlatforms"></div>
 
     <table class="port-table" id="portTable"><tbody></tbody></table>
 
@@ -961,14 +962,44 @@ function renderPortfolio() {
     </div>
     <div class="port-stat">
       <div class="ps-label">累计盈亏</div>
-      <div class="ps-value" style="color:${totalPnL>=0?'var(--green)':'var(--red)'}">${totalPnL>=0?'+':''}¥${(totalPnL/1e4).toFixed(2)}万</div>
-      <div class="ps-sub" style="color:${pnlPct>=0?'var(--green)':'var(--red)'}">${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%</div>
+      <div class="ps-value" style="color:${totalPnL>=0?'var(--red)':'var(--green)'}">${totalPnL>=0?'+':''}¥${(totalPnL/1e4).toFixed(2)}万</div>
+      <div class="ps-sub" style="color:${pnlPct>=0?'var(--red)':'var(--green)'}">${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%</div>
     </div>
     <div class="port-stat">
       <div class="ps-label">持仓数量</div>
       <div class="ps-value">${h.length} 笔</div>
       <div class="ps-sub">${new Set(h.map(x=>x.platform)).size} 个平台</div>
     </div>`;
+
+  // Per-platform summaries
+  const platforms = {};
+  h.forEach(x => {
+    const p = x.platform || '未知';
+    if (!platforms[p]) platforms[p] = { val: 0, cost: 0, count: 0, cats: {} };
+    platforms[p].val += parseFloat(x.value) || 0;
+    platforms[p].cost += parseFloat(x.cost) || 0;
+    platforms[p].count++;
+    const cat = x.category || '其他';
+    platforms[p].cats[cat] = (platforms[p].cats[cat] || 0) + (parseFloat(x.value) || 0);
+  });
+
+  let platHTML = '';
+  for (const [name, p] of Object.entries(platforms)) {
+    const pPnl = p.val - p.cost;
+    const pPct = p.cost > 0 ? (pPnl / p.cost * 100) : 0;
+    const pnlColor = pPnl >= 0 ? 'var(--red)' : 'var(--green)';
+    const catTags = Object.entries(p.cats).sort((a,b) => b[1] - a[1])
+      .map(([cn, cv]) => cn + ' ¥' + (cv/1e4).toFixed(1) + '万').join(' · ');
+    platHTML += '<div style="display:flex;align-items:center;gap:12px;padding:5px 0;font-size:.73em;flex-wrap:wrap;border-bottom:1px solid #eee">' +
+      '<span style="font-weight:700;min-width:56px">' + name + '</span>' +
+      '<span>市值 <b>¥' + (p.val/1e4).toFixed(2) + '万</b></span>' +
+      '<span>成本 <b>¥' + (p.cost/1e4).toFixed(2) + '万</b></span>' +
+      '<span>盈亏 <b style="color:' + pnlColor + '">' + (pPnl>=0?'+':'') + '¥' + (Math.abs(pPnl)/1e4).toFixed(2) + '万 (' + (pPct>=0?'+':'') + pPct.toFixed(1) + '%)</b></span>' +
+      '<span style="color:var(--sub)">' + p.count + '笔</span>' +
+      '<span style="color:var(--sub);font-size:.95em">' + catTags + '</span></div>';
+  }
+
+  document.getElementById('portPlatforms').innerHTML = platHTML;
 
   // Category breakdown
   const cats = {};
