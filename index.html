@@ -123,7 +123,7 @@ body {
 .ret-tag.down { background: #fee2e2; color: #991b1b; }
 
 /* Sparkline */
-.spark-wrap { height: 64px; position: relative; }
+.spark-wrap { height: 70px; position: relative; }
 .spark-wrap svg { width: 100%; height: 100%; }
 
 /* Score bar */
@@ -162,6 +162,15 @@ body {
 .btn-add { background: var(--blue); color: #fff; }
 .btn-outline { background: #fff; color: var(--blue); border: 1px solid var(--blue); }
 .add-row button:hover { opacity: .8; }
+
+/* Delete button */
+.card-del {
+  width: 24px; height: 24px; border-radius: 50%; border: none;
+  background: transparent; color: #94a3b8; cursor: pointer;
+  font-size: 1.1em; display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0; line-height: 1;
+}
+.card-del:hover { background: #fee2e2; color: #e5484d; }
 </style>
 </head>
 <body>
@@ -181,6 +190,7 @@ body {
   <div class="market-item"><span class="mi-label">纳指PE</span><span class="mi-value" id="mnas">33.8</span><span class="mi-sub" style="font-size:.68em;color:var(--sub);margin-left:2px">85%分位</span></div>
   <div class="market-item"><span class="mi-label">A500 PE</span><span class="mi-value" id="ma500">17.8</span><span class="mi-sub" style="font-size:.68em;color:var(--sub);margin-left:2px">78%分位</span></div>
   <div class="market-item"><span class="mi-label">红利低波PE</span><span class="mi-value" id="mdiv">8.5</span><span class="mi-sub" style="font-size:.68em;color:var(--sub);margin-left:2px">78%分位</span></div>
+  <div class="market-item"><span class="mi-label">自由现金流PE</span><span class="mi-value" id="mfcfe">16.1</span><span class="mi-sub" style="font-size:.68em;color:var(--sub);margin-left:2px">65%分位</span></div>
 </div>
 
 <!-- ── Main content ── -->
@@ -207,15 +217,17 @@ const MARKET = {
   cape: 38.5, // S&P 500 Shiller CAPE
   nasPE: 33.8, nasPct: 85,
   a500PE: 17.8, a500Pct: 78,
-  divPE: 8.5, divPct: 78
+  divPE: 8.5, divPct: 78,
+  fcfePE: 16.1, fcfePct: 65  // 国证自由现金流
 };
 
 function getFundPE(code) {
-  // Index-level PE data for our default funds
-  if (code === '040046') return { pe: MARKET.nasPE, pct: MARKET.nasPct };
-  if (code === '050025') return { pe: 24.6, pct: 92 }; // S&P 500 trailing PE
-  if (code === '022453') return { pe: MARKET.a500PE, pct: MARKET.a500Pct };
-  if (code === '007466') return { pe: MARKET.divPE, pct: MARKET.divPct };
+  // Index-level PE data — maps funds to their tracking indices
+  if (code === '040046') return { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' };
+  if (code === '050025') return { pe: 24.6, pct: 92, label: '标普500' };
+  if (code === '022459') return { pe: MARKET.a500PE, pct: MARKET.a500Pct, label: '中证A500' };
+  if (code === '007466') return { pe: MARKET.divPE, pct: MARKET.divPct, label: '红利低波' };
+  if (code === '023917') return { pe: MARKET.fcfePE, pct: MARKET.fcfePct, label: '自由现金流' };
   return null;
 }
 
@@ -377,27 +389,52 @@ function drawSparkline(code, history) {
   const filtered = history.slice(-132); // last ~6 months
   if (filtered.length < 5) return;
 
-  const min = Math.min(...filtered.map(d => d.nav));
-  const max = Math.max(...filtered.map(d => d.nav));
-  const range = max - min || 1;
-  const w = 300, h = 64, pad = 4;
+  const w = 300, h = 70, pad = 4, topPad = 10;
+
+  // Calculate MA60 and std for bands (use full history if available)
+  const calcWindow = history.length >= 60 ? history.slice(-60) : history;
+  const ma60 = calcWindow.reduce((a, b) => a + b.nav, 0) / calcWindow.length;
+  const variance = calcWindow.reduce((a, b) => a + (b.nav - ma60) ** 2, 0) / calcWindow.length;
+  const std = Math.sqrt(variance);
+  const upper = ma60 + 2 * std;
+  const lower = ma60 - 2 * std;
+
+  // Extend data range to include bands
+  const allVals = [...filtered.map(d => d.nav), upper, lower];
+  const dataMin = Math.min(...allVals);
+  const dataMax = Math.max(...allVals);
+  const range = dataMax - dataMin || 1;
+
+  const toY = v => h - pad - ((v - dataMin) / range) * (h - pad - topPad);
 
   const points = filtered.map((d, i) => {
     const x = pad + (i / (filtered.length - 1)) * (w - pad * 2);
-    const y = h - pad - ((d.nav - min) / range) * (h - pad * 2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
+    return `${x.toFixed(1)},${toY(d.nav).toFixed(1)}`;
   }).join(' ');
 
   const trend = filtered[filtered.length - 1].nav >= filtered[0].nav ? '#0ea371' : '#e5484d';
   const gradId = 'grad-' + code;
 
-  wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:64px">
+  const upperY = toY(upper).toFixed(1);
+  const lowerY = toY(lower).toFixed(1);
+
+  wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:70px">
     <defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${trend}" stop-opacity="0.15"/>
+      <stop offset="0%" stop-color="${trend}" stop-opacity="0.12"/>
       <stop offset="100%" stop-color="${trend}" stop-opacity="0"/>
     </linearGradient></defs>
+    <!-- Upper band (估值高位) -->
+    <line x1="${pad}" y1="${upperY}" x2="${w-pad}" y2="${upperY}"
+      stroke="#e5484d" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>
+    <text x="${w-pad}" y="${parseFloat(upperY)-3}" fill="#e5484d" font-size="7" text-anchor="end" opacity="0.8">高位 ${upper.toFixed(3)}</text>
+    <!-- Lower band (估值低位) -->
+    <line x1="${pad}" y1="${lowerY}" x2="${w-pad}" y2="${lowerY}"
+      stroke="#0ea371" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>
+    <text x="${w-pad}" y="${parseFloat(lowerY)-3}" fill="#0ea371" font-size="7" text-anchor="end" opacity="0.8">低位 ${lower.toFixed(3)}</text>
+    <!-- Area fill -->
     <polygon points="${pad},${h-pad} ${points} ${w-pad},${h-pad}"
       fill="url(#${gradId})" stroke="none"/>
+    <!-- NAV line -->
     <polyline points="${points}" fill="none" stroke="${trend}" stroke-width="1.5" stroke-linejoin="round"/>
   </svg>`;
 }
@@ -423,7 +460,7 @@ function renderCard(fund) {
 
   const peBar = peInfo && peInfo.pct != null ? `
     <div class="pe-row">
-      <span class="pe-label">PE分位</span>
+      <span class="pe-label">${peInfo.label || 'PE'}分位</span>
       <div class="pe-track"><div class="pe-dot" style="left:${peInfo.pct}%"></div></div>
       <span class="pe-val">${peInfo.pct}% (PE ${peInfo.pe})</span>
     </div>` : '';
@@ -439,6 +476,7 @@ function renderCard(fund) {
         <span class="card-name">${fund.name || '基金 ' + fund.code}</span>
         <span class="card-code">${fund.code}</span>
         <span class="card-badge badge-${sig.cls}">${sig.signal} ${sig.score}分</span>
+        <button class="card-del" onclick="removeFund('${fund.code}')" title="移除">×</button>
       </div>
 
       <div class="metrics">
@@ -493,8 +531,8 @@ function renderCard(fund) {
 
 // ======================== Core ========================
 const cache = {};
-const DEFAULT_FUNDS = ['040046', '050025', '022453', '007466'];
-const KEY = 'fund_codes_v3';
+const DEFAULT_FUNDS = ['040046', '050025', '022459', '007466', '023917'];
+const KEY = 'fund_codes_v4';
 
 function getCodes() {
   try {
@@ -581,6 +619,27 @@ async function addFunds() {
   if (!newCodes.length) { alert('请输入6位数字基金代码'); return; }
   saveCodes([...new Set([...getCodes(), ...newCodes])]);
   document.getElementById('fundInput').value = '';
+  await refreshAll();
+}
+
+async function removeFund(code) {
+  const codes = getCodes().filter(c => c !== code);
+  if (!codes.length) { alert('至少保留一只基金'); return; }
+  saveCodes(codes);
+  delete cache[code];
+  // Re-render without full reload
+  const remaining = codes.map(c => cache[c] || { code, name: '', history: [] });
+  if (remaining.every(f => f.history && f.history.length >= 0)) {
+    // If all funds are cached, just re-render
+    const funds = codes.map(c => cache[c]).filter(Boolean);
+    if (funds.length === codes.length) {
+      renderAll(funds);
+      document.getElementById('updateTime').textContent =
+        '更新 ' + new Date().toLocaleString('zh-CN');
+      document.getElementById('cacheHint').textContent = '已保存: ' + codes.join(', ');
+      return;
+    }
+  }
   await refreshAll();
 }
 
