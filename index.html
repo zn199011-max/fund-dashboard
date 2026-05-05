@@ -3,186 +3,221 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>基金投资评估仪表盘</title>
+<title>基金投资仪表盘</title>
 <style>
 :root {
-  --bg: #f0f2f5;
+  --bg: #f6f7f9;
   --card: #fff;
-  --text: #1a1a2e;
-  --text2: #666;
-  --border: #e8e8e8;
-  --green: #16a34a;
-  --red: #dc2626;
-  --blue: #2563eb;
-  --orange: #ea580c;
-  --buy: #16a34a;
-  --watch: #ca8a04;
-  --sell: #dc2626;
-  --radius: 10px;
-  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --text: #1a1d26;
+  --sub: #687086;
+  --border: #e9ebf0;
+  --green: #0ea371;
+  --red: #e5484d;
+  --amber: #d97706;
+  --blue: #3b6df0;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
 }
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
-  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
   background: var(--bg); color: var(--text); line-height: 1.5;
-  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Header */
-.header {
-  background: linear-gradient(135deg, #0f172a, #1e293b);
-  color: #fff; padding: 16px 24px; position: sticky; top:0; z-index:100;
-  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+/* ── Top bar ── */
+.topbar {
+  background: #fff; border-bottom: 1px solid var(--border);
+  padding: 12px 20px; display: flex; align-items: center; gap: 20px;
+  flex-wrap: wrap; position: sticky; top: 0; z-index: 50; box-shadow: 0 1px 2px rgba(0,0,0,.03);
 }
-.header h1 { font-size: 1.3em; font-weight: 700; }
-.header .meta { font-size: .78em; opacity:.65; }
+.topbar-brand { font-weight: 700; font-size: .95em; white-space: nowrap; color: var(--text); }
+.topbar-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; }
+.topbar-time { font-size: .73em; color: var(--sub); margin-left: auto; white-space: nowrap; }
+.topbar-refresh {
+  font-size: .78em; color: var(--blue); cursor: pointer; border: none;
+  background: #eef2ff; padding: 5px 12px; border-radius: 6px; font-weight: 600;
+  white-space: nowrap; transition: opacity .15s;
+}
+.topbar-refresh:hover { opacity: .7; }
 
-/* Container */
-.container { max-width: 1320px; margin: auto; padding: 16px; }
+/* ── Market strip ── */
+.market-strip {
+  display: flex; gap: 12px; padding: 10px 20px; flex-wrap: wrap;
+  background: #fff; border-bottom: 1px solid var(--border);
+}
+.market-item {
+  display: flex; align-items: center; gap: 6px; font-size: .76em;
+  padding: 5px 10px; background: #f8f9fb; border-radius: 6px; white-space: nowrap;
+}
+.market-item .mi-label { color: var(--sub); }
+.market-item .mi-value { font-weight: 700; }
+.market-item .mi-tag {
+  font-size: .72em; padding: 1px 6px; border-radius: 4px; font-weight: 600;
+}
+.mi-tag.fear { background: #fef3c7; color: #92400e; }
+.mi-tag.greed { background: #fee2e2; color: #991b1b; }
+.mi-tag.neutral { background: #e5e7eb; color: #374151; }
+.mi-tag.extreme { background: #fee2e2; color: #7f1d1d; }
 
-/* Summary bar */
-.summary-bar {
-  display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;
-}
-.summary-bar .tag {
-  padding: 6px 14px; border-radius: 20px; font-size: .85em; font-weight: 600;
-  background: #fff; box-shadow: var(--shadow);
-}
-.tag.buy { color: var(--buy); background: #dcfce7; }
-.tag.watch { color: var(--watch); background: #fef9c3; }
-.tag.sell { color: var(--sell); background: #fee2e2; }
-.summary-bar .add-wrap { display: flex; gap: 8px; margin-left: auto; }
-.summary-bar input {
-  padding: 8px 14px; border: 1px solid var(--border); border-radius: 20px;
-  font-size: .9em; outline: none; width: 280px;
-}
-.summary-bar input:focus { border-color: var(--blue); }
-.summary-bar button {
-  padding: 8px 18px; border-radius: 20px; border: none; font-size: .9em;
-  cursor: pointer; font-weight: 600; transition: opacity .15s;
-}
-.btn-primary { background: var(--blue); color: #fff; }
-.btn-outline { background: #fff; color: var(--blue); border: 1px solid var(--blue); }
-.summary-bar button:hover { opacity: .85; }
+/* ── Container ── */
+.container { max-width: 1100px; margin: auto; padding: 16px 20px; }
 
-/* Fund grid */
+/* ── Fund grid ── */
 .fund-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
-  gap: 16px;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
 }
-@media (max-width: 700px) { .fund-grid { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .fund-grid { grid-template-columns: 1fr; } }
 
-/* Fund card */
-.fund-card {
+/* ── Card ── */
+.card {
   background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
-  overflow: hidden;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;
 }
-.fund-card .card-header {
-  padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
-  border-bottom: 1px solid var(--border); gap: 12px;
-}
-.card-header .fund-title { font-weight: 700; font-size: 1.05em; flex: 1; }
-.card-header .fund-code { font-size: .78em; color: var(--text2); }
-.card-header .signal {
-  padding: 4px 14px; border-radius: 20px; font-size: .8em; font-weight: 700; white-space: nowrap;
-}
-.signal-buy { background: #dcfce7; color: #15803d; }
-.signal-watch { background: #fef9c3; color: #a16207; }
-.signal-sell { background: #fee2e2; color: #b91c1c; }
 
-.card-body { padding: 14px 18px; }
-
-/* Metric rows */
-.metric-row {
-  display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+/* Card header */
+.card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.card-name { font-weight: 700; font-size: .95em; flex: 1; }
+.card-code { font-size: .73em; color: var(--sub); }
+.card-badge {
+  padding: 4px 12px; border-radius: 20px; font-size: .76em; font-weight: 700; white-space: nowrap;
+  letter-spacing: .3px;
 }
-.metric-item {
-  flex: 1; min-width: 90px; background: #f8fafc;
-  border-radius: 8px; padding: 10px 12px; text-align: center;
-}
-.metric-item .m-label { font-size: .73em; color: var(--text2); }
-.metric-item .m-value { font-size: 1.15em; font-weight: 700; margin-top: 2px; }
-.metric-item .m-sub { font-size: .75em; margin-top: 1px; }
+.badge-buy { background: #d1fae5; color: #065f46; }
+.badge-watch { background: #fef3c7; color: #92400e; }
+.badge-sell { background: #fee2e2; color: #991b1b; }
 
-/* PE gauge */
-.gauge-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.gauge-label { font-size: .78em; color: var(--text2); min-width: 52px; }
-.gauge-bar-wrap {
-  flex: 1; height: 8px; border-radius: 4px; position: relative;
-  background: linear-gradient(to right, #16a34a 0%, #16a34a 30%, #facc15 30%, #facc15 70%, #dc2626 70%, #dc2626 100%);
+/* Metrics row */
+.metrics {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
 }
-.gauge-dot {
-  position: absolute; top: -5px; width: 18px; height: 18px;
-  border-radius: 50%; background: #fff; border: 3px solid #1e293b;
-  transform: translateX(-50%); transition: left .5s;
+.met {
+  text-align: center; padding: 8px 4px; background: #f8f9fb; border-radius: 8px;
 }
-.gauge-val { font-size: .8em; font-weight: 700; min-width: 70px; }
+.met-label { font-size: .68em; color: var(--sub); margin-bottom: 2px; }
+.met-value { font-size: .92em; font-weight: 700; }
 
-/* Return badges */
-.return-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
-.ret-badge {
-  padding: 3px 10px; border-radius: 14px; font-size: .76em; font-weight: 600;
+/* PE bar */
+.pe-row {
+  display: flex; align-items: center; gap: 8px; font-size: .75em;
 }
-.ret-badge.up { background: #dcfce7; color: #15803d; }
-.ret-badge.down { background: #fee2e2; color: #b91c1c; }
-.ret-badge.flat { background: #f1f5f9; color: #64748b; }
-
-/* Chart area */
-.chart-section { margin-top: 8px; }
-.time-tabs { display: flex; gap: 4px; margin-bottom: 6px; }
-.time-tab {
-  padding: 4px 14px; border-radius: 14px; border: 1px solid var(--border);
-  background: #fff; font-size: .78em; cursor: pointer; transition: all .15s;
+.pe-label { color: var(--sub); min-width: 48px; }
+.pe-track {
+  flex: 1; height: 6px; border-radius: 3px; position: relative;
+  background: linear-gradient(to right, #0ea371 0%, #0ea371 25%, #facc15 25%, #facc15 60%, #ef4444 60%, #ef4444 100%);
 }
-.time-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
-.time-tab:hover:not(.active) { background: #f1f5f9; }
-.chart-wrap { height: 220px; position: relative; }
-.chart-wrap canvas { width: 100% !important; }
+.pe-dot {
+  position: absolute; top: -4px; width: 14px; height: 14px;
+  border-radius: 50%; background: #fff; border: 2.5px solid #1a1d26;
+  transform: translateX(-50%); transition: left .4s;
+}
+.pe-val { font-weight: 700; min-width: 64px; text-align: right; }
 
-/* Signal explanation */
-.signal-row { display: flex; gap: 8px; font-size: .75em; color: var(--text2); margin-top: 8px; }
-.signal-row span { display: flex; align-items: center; gap: 4px; }
-.signal-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.signal-dot.buy { background: var(--buy); }
-.signal-dot.watch { background: var(--watch); }
-.signal-dot.sell { background: var(--sell); }
+/* Returns row */
+.rets { display: flex; gap: 6px; flex-wrap: wrap; }
+.ret-tag {
+  padding: 3px 9px; border-radius: 5px; font-size: .73em; font-weight: 600;
+  background: #f1f5f9; color: #475569;
+}
+.ret-tag.up { background: #d1fae5; color: #065f46; }
+.ret-tag.down { background: #fee2e2; color: #991b1b; }
 
-.loading { text-align:center; padding:60px; color:var(--text2); font-size:1.1em; }
-.note { font-size: .75em; color: var(--text2); margin-top: 20px; text-align: center; }
+/* Sparkline */
+.spark-wrap { height: 64px; position: relative; }
+.spark-wrap svg { width: 100%; height: 100%; }
+
+/* Score bar */
+.score-row {
+  display: flex; align-items: center; gap: 8px; font-size: .75em;
+  border-top: 1px solid var(--border); padding-top: 10px;
+}
+.score-label { color: var(--sub); white-space: nowrap; }
+.score-bar-wrap { flex: 1; height: 5px; border-radius: 3px; background: #e5e7eb; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 3px; transition: width .5s, background .5s; }
+.score-num { font-weight: 700; min-width: 28px; text-align: right; }
+.score-breakdown { font-size: .7em; color: var(--sub); }
+
+/* Loading / empty */
+.loading { text-align: center; padding: 50px; color: var(--sub); font-size: .95em; }
+
+/* Footer */
+.footer {
+  text-align: center; padding: 20px; font-size: .72em; color: var(--sub);
+  border-top: 1px solid var(--border); margin-top: 20px;
+}
+
+/* Add fund */
+.add-row {
+  margin-bottom: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.add-row input {
+  padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: .85em; outline: none; width: 260px; font-family: inherit;
+}
+.add-row input:focus { border-color: var(--blue); }
+.add-row button {
+  padding: 8px 16px; border-radius: 8px; border: none; font-size: .85em;
+  cursor: pointer; font-weight: 600; transition: opacity .15s; font-family: inherit;
+}
+.btn-add { background: var(--blue); color: #fff; }
+.btn-outline { background: #fff; color: var(--blue); border: 1px solid var(--blue); }
+.add-row button:hover { opacity: .8; }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div>
-    <h1>基金投资评估仪表盘</h1>
-    <div class="meta" id="headerMeta">数据来源：天天基金/东方财富 ｜ 仅供参考，不构成投资建议</div>
-  </div>
+<!-- ── Top bar ── -->
+<div class="topbar">
+  <span class="topbar-brand"><span class="topbar-dot"></span>基金投资仪表盘</span>
+  <span class="topbar-time" id="updateTime">加载中…</span>
+  <button class="topbar-refresh" onclick="refreshAll()">⟳ 刷新数据</button>
 </div>
 
-<div class="container">
-  <!-- Summary -->
-  <div class="summary-bar" id="summaryBar">
-    <span style="font-weight:700;font-size:.9em">核心关注</span>
-    <span class="tag buy" id="buyCount">🟢 买入信号 --</span>
-    <span class="tag watch" id="watchCount">🟡 观望 --</span>
-    <span class="tag sell" id="sellCount">🔴 谨慎 --</span>
-    <div class="add-wrap">
-      <input type="text" id="fundInput" placeholder="添加基金代码，逗号分隔">
-      <button class="btn-primary" onclick="addFunds()">＋ 添加</button>
-      <button class="btn-outline" onclick="refreshAll()">⟳ 刷新</button>
-    </div>
-  </div>
+<!-- ── Market indicators ── -->
+<div class="market-strip" id="marketStrip">
+  <div class="market-item"><span class="mi-label">VIX</span><span class="mi-value" id="mvix">--</span></div>
+  <div class="market-item"><span class="mi-label">恐慌贪婪</span><span class="mi-value" id="mfng">--</span><span class="mi-tag" id="mfngTag"></span></div>
+  <div class="market-item"><span class="mi-label">标普CAPE</span><span class="mi-value" id="mcape">38.5</span></div>
+  <div class="market-item"><span class="mi-label">纳指PE</span><span class="mi-value" id="mnas">33.8</span></div>
+  <div class="market-item"><span class="mi-label">A500 PE</span><span class="mi-value" id="ma500">17.8</span></div>
+  <div class="market-item"><span class="mi-label">红利低波PE</span><span class="mi-value" id="mdiv">8.5</span></div>
+</div>
 
-  <!-- Fund cards -->
+<!-- ── Main content ── -->
+<div class="container">
+  <div class="add-row">
+    <span style="font-size:.82em;color:var(--sub);white-space:nowrap">自定义基金</span>
+    <input type="text" id="fundInput" placeholder="输入6位基金代码，逗号分隔">
+    <button class="btn-add" onclick="addFunds()">＋ 添加</button>
+    <span style="font-size:.73em;color:var(--sub);margin-left:auto" id="cacheHint"></span>
+  </div>
   <div id="fundList"></div>
   <div class="loading" id="loadingMsg">加载中...</div>
-  <div class="note">数据仅供参考，不构成投资建议。投资有风险，入市需谨慎。</div>
+</div>
+
+<div class="footer">
+  数据来源：天天基金 / 东方财富 / CNN / CBOE ｜ 仅供参考，不构成投资建议。投资有风险，入市需谨慎。
 </div>
 
 <script>
-// ======================== Config ========================
-const DEFAULT_FUNDS = ['040046','050025','022453','007466'];
+// ======================== Market data ========================
+const MARKET = {
+  vix: 17.1, vixDate: '2026-05-01',
+  fng: 66, fngLabel: '贪婪', fngDate: '2026-05-04',
+  cape: 38.5, // S&P 500 Shiller CAPE
+  nasPE: 33.8, nasPct: 85,
+  a500PE: 17.8, a500Pct: 78,
+  divPE: 8.5, divPct: 78
+};
+
+function getFundPE(code) {
+  // Index-level PE data for our default funds
+  if (code === '040046') return { pe: MARKET.nasPE, pct: MARKET.nasPct };
+  if (code === '050025') return { pe: 24.6, pct: 92 }; // S&P 500 trailing PE
+  if (code === '022453') return { pe: MARKET.a500PE, pct: MARKET.a500Pct };
+  if (code === '007466') return { pe: MARKET.divPE, pct: MARKET.divPct };
+  return null;
+}
 
 // ======================== APIs ========================
 function fetchEstimate(code) {
@@ -190,10 +225,16 @@ function fetchEstimate(code) {
     const prev = window.jsonpgz;
     const script = document.createElement('script');
     let done = false;
-    window.jsonpgz = data => { if(!done){ done=true; window.jsonpgz=prev; script.remove(); resolve(data); } };
+    window.jsonpgz = data => {
+      if (!done) { done = true; window.jsonpgz = prev; script.remove(); resolve(data); }
+    };
     script.src = `https://fundgz.1234567.com.cn/js/${code}.js?_=${Date.now()}`;
-    script.onerror = () => { if(!done){ done=true; window.jsonpgz=prev; script.remove(); reject(new Error('err')); } };
-    setTimeout(() => { if(!done){ done=true; window.jsonpgz=prev; script.remove(); reject(new Error('timeout')); } }, 10000);
+    script.onerror = () => {
+      if (!done) { done = true; window.jsonpgz = prev; script.remove(); reject(new Error('err')); }
+    };
+    setTimeout(() => {
+      if (!done) { done = true; window.jsonpgz = prev; script.remove(); reject(new Error('timeout')); }
+    }, 10000);
     document.head.appendChild(script);
   });
 }
@@ -202,7 +243,7 @@ function fetchHistory(code) {
   return new Promise((resolve) => {
     const script = document.createElement('script');
     let done = false;
-    const finish = d => { if(!done){ done=true; script.remove(); resolve(d); } };
+    const finish = d => { if (!done) { done = true; script.remove(); resolve(d); } };
     script.src = `https://fund.eastmoney.com/pingzhongdata/${code}.js?v=${Date.now()}`;
     script.onload = () => {
       const raw = window.Data_netWorthTrend;
@@ -214,22 +255,14 @@ function fetchHistory(code) {
        'syl_1n','syl_6y','syl_3y','syl_1y','stockCodes','stockCodesNew','zqCodes',
        'zqCodesNew','fund_sourceRate','fund_Rate','fund_minsg','ishb'].forEach(k => delete window[k]);
       if (raw && raw.length) {
-        finish(raw.map(d => ({
-          date: String(d.x).slice(0,10),
-          nav: d.y
-        })).concat({ name, s1n, s6y, s3y, s1y }));
-      } else finish([]);
+        const data = raw.map(d => ({ date: String(d.x).slice(0, 10), nav: d.y }));
+        finish({ data, name, s1n, s6y, s3y, s1y });
+      } else finish({ data: [], name:'', s1n:null, s6y:null, s3y:null, s1y:null });
     };
-    script.onerror = () => finish([]);
-    setTimeout(() => finish([]), 15000);
+    script.onerror = () => finish({ data:[], name:'', s1n:null, s6y:null, s3y:null, s1y:null });
+    setTimeout(() => finish({ data:[], name:'', s1n:null, s6y:null, s3y:null, s1y:null }), 15000);
     document.head.appendChild(script);
   });
-}
-
-function fetchPE(code) {
-  return fetch(`https://api.fund.eastmoney.com/f10/FundTradeInfo?fundcode=${code}`, {
-    headers: { Referer: 'https://fund.eastmoney.com/' }
-  }).then(r => r.json()).then(d => d.Data || {}).catch(() => ({}));
 }
 
 // ======================== Calculations ========================
@@ -237,385 +270,252 @@ function calcReturns(history) {
   if (!history || history.length < 5) return {};
   const last = history[history.length - 1].nav;
   return {
-    '1周': calcRet(history, last, 5),
-    '1月': calcRet(history, last, 22),
-    '3月': calcRet(history, last, 66),
-    '6月': calcRet(history, last, 132),
-    '1年': calcRet(history, last, 264),
+    '1周': retAt(history, last, 5),
+    '1月': retAt(history, last, 22),
+    '3月': retAt(history, last, 66),
+    '6月': retAt(history, last, 132),
+    '1年': retAt(history, last, 264)
   };
 }
-function calcRet(history, last, days) {
-  const idx = Math.max(0, history.length - 1 - days);
-  const prev = history[idx].nav;
-  return prev > 0 ? ((last - prev) / prev * 100) : null;
+function retAt(h, last, n) {
+  const i = Math.max(0, h.length - 1 - n);
+  return h[i].nav > 0 ? ((last - h[i].nav) / h[i].nav * 100) : null;
 }
 
 function calcMaxDrawdown(history) {
   if (!history || history.length < 2) return null;
   let peak = history[0].nav, maxDd = 0;
-  for (const h of history) { if (h.nav > peak) peak = h.nav; const dd = (peak - h.nav) / peak * 100; if (dd > maxDd) maxDd = dd; }
+  for (const h of history) {
+    if (h.nav > peak) peak = h.nav;
+    const dd = (peak - h.nav) / peak * 100;
+    if (dd > maxDd) maxDd = dd;
+  }
   return maxDd;
 }
 
-function calcAnnualVol(history) {
-  if (!history || history.length < 22) return null;
-  const rets = [];
-  for (let i = 1; i < history.length; i++) rets.push((history[i].nav - history[i-1].nav) / history[i-1].nav);
-  const avg = rets.reduce((a,b)=>a+b,0)/rets.length;
-  const vari = rets.reduce((a,b)=>a+(b-avg)**2,0)/rets.length;
-  return Math.sqrt(vari)*Math.sqrt(252)*100;
-}
-
-function calcSharpe(history) {
-  if (!history || history.length < 22) return null;
-  const rets = [];
-  for (let i = 1; i < history.length; i++) rets.push((history[i].nav - history[i-1].nav) / history[i-1].nav);
-  const avg = rets.reduce((a,b)=>a+b,0)/rets.length;
-  const vari = rets.reduce((a,b)=>a+(b-avg)**2,0)/rets.length;
-  const std = Math.sqrt(vari);
-  if (std === 0) return null;
-  return ((avg*252 - 0.025) / (std*Math.sqrt(252)));
-}
-
-function calcCalmar(history) {
-  const dd = calcMaxDrawdown(history);
-  if (!dd || !history || history.length < 264) return null;
-  const yRet = (history[history.length-1].nav - history[history.length-1-264].nav) / history[history.length-1-264].nav;
-  return dd > 0 ? (yRet / (dd/100)) : null;
-}
-
-function calcWinRate(history) {
-  if (!history || history.length < 22) return null;
-  let wins = 0, total = 0;
-  for (let i = 22; i < history.length; i++) {
-    const mRet = (history[i].nav - history[i-22].nav) / history[i-22].nav;
-    if (mRet > 0) wins++;
-    total++;
-  }
-  return total > 0 ? (wins/total*100) : null;
-}
-
-function calcMA(history, period) {
-  if (!history || history.length < period) return [];
-  const result = [];
-  for (let i = period - 1; i < history.length; i++) {
-    let sum = 0;
-    for (let j = i - period + 1; j <= i; j++) sum += history[j].nav;
-    result.push({ date: history[i].date, value: sum / period });
-  }
-  return result;
-}
-
 function calcDeviation(history) {
-  if (!history || history.length < 120) return null;
+  if (!history || history.length < 60) return null;
   const last = history[history.length - 1].nav;
-  const ma60 = history.slice(-60).reduce((a,b)=>a+b.nav,0) / 60;
-  return ((last - ma60) / ma60 * 100);
+  const sum = history.slice(-60).reduce((a, b) => a + b.nav, 0);
+  return ((last - sum / 60) / (sum / 60) * 100);
 }
 
-// ======================== Investment Signal ========================
-function calcSignal(f) {
-  // Multi-factor investment signal
-  let score = 50; // neutral
+// ======================== Scoring ========================
+function calcScore(fund) {
+  let score = 50;
   const reasons = [];
 
-  // Factor 1: PE percentile (if available)
-  if (f.pePercentile != null) {
-    if (f.pePercentile < 20) { score += 20; reasons.push('PE极度低估'); }
-    else if (f.pePercentile < 35) { score += 12; reasons.push('PE较低估'); }
-    else if (f.pePercentile < 50) { score += 5; reasons.push('PE合理偏低'); }
-    else if (f.pePercentile < 70) { score -= 3; reasons.push('PE合理偏高'); }
-    else if (f.pePercentile < 85) { score -= 12; reasons.push('PE较高估'); }
-    else { score -= 20; reasons.push('PE极度高估'); }
+  // --- Fund factors (±30) ---
+  const peInfo = getFundPE(fund.code);
+  if (peInfo && peInfo.pct != null) {
+    if (peInfo.pct < 20) { score += 15; reasons.push('PE极度低估'); }
+    else if (peInfo.pct < 35) { score += 10; reasons.push('PE较低'); }
+    else if (peInfo.pct < 50) { score += 4; reasons.push('PE合理'); }
+    else if (peInfo.pct < 70) { score -= 4; reasons.push('PE偏高'); }
+    else if (peInfo.pct < 85) { score -= 10; reasons.push('PE高估'); }
+    else { score -= 15; reasons.push('PE极度高估'); }
   }
 
-  // Factor 2: Short-term momentum
-  const r1m = f.returns?.['1月'];
-  const r3m = f.returns?.['3月'];
+  const r1m = fund.returns?.['1月'];
+  const r3m = fund.returns?.['3月'];
   if (r1m != null) {
-    if (r1m > 5) { score += 10; reasons.push('近1月强势'); }
-    else if (r1m > 0) { score += 4; reasons.push('近1月温和上涨'); }
-    else if (r1m < -8) { score -= 12; reasons.push('近1月大幅下跌'); }
-    else if (r1m < -3) { score -= 6; reasons.push('近1月下跌'); }
+    if (r1m > 5) { score += 6; reasons.push('近1月强势'); }
+    else if (r1m > 0) { score += 3; reasons.push('近1月上扬'); }
+    else if (r1m < -8) { score -= 8; reasons.push('近1月急跌'); }
+    else if (r1m < -3) { score -= 4; reasons.push('近1月走弱'); }
   }
   if (r3m != null) {
-    if (r3m > 15) { score += 8; reasons.push('近3月强势'); }
-    else if (r3m < -15) { score -= 8; reasons.push('近3月弱势'); }
+    if (r3m > 15) { score += 5; reasons.push('近3月强势'); }
+    else if (r3m < -15) { score -= 6; reasons.push('近3月弱势'); }
   }
 
-  // Factor 3: Deviation from MA60
-  const dev = calcDeviation(f.history);
+  const dev = fund.deviation;
   if (dev != null) {
-    if (dev < -8) { score += 8; reasons.push('低于MA60超卖'); }
-    else if (dev < -3) { score += 4; reasons.push('低于MA60'); }
-    else if (dev > 12) { score -= 10; reasons.push('高于MA60过热'); }
-    else if (dev > 6) { score -= 4; reasons.push('高于MA60'); }
+    if (dev < -10) { score += 6; reasons.push('严重低于MA60'); }
+    else if (dev < -5) { score += 3; reasons.push('低于MA60'); }
+    else if (dev > 15) { score -= 7; reasons.push('严重高于MA60'); }
+    else if (dev > 8) { score -= 3; reasons.push('高于MA60'); }
   }
 
-  // Factor 4: Max drawdown risk
-  if (f.maxDd != null) {
-    if (f.maxDd > 35) { score -= 10; reasons.push('历史回撤极大'); }
-    else if (f.maxDd > 25) { score -= 5; reasons.push('历史回撤较大'); }
-    else if (f.maxDd < 10) { score += 5; reasons.push('回撤控制优秀'); }
+  const dd = fund.maxDd;
+  if (dd != null) {
+    if (dd > 35) score -= 5;
+    else if (dd > 25) score -= 2;
+    else if (dd < 10) score += 3;
   }
 
-  let signal, signalCls;
-  if (score >= 65) { signal = '买入建议'; signalCls = 'signal-buy'; }
-  else if (score >= 40) { signal = '观望/定投'; signalCls = 'signal-watch'; }
-  else { signal = '谨慎/回避'; signalCls = 'signal-sell'; }
+  // --- Market overlay (±20) ---
+  const vix = MARKET.vix;
+  if (vix > 30) { score += 8; reasons.push('VIX极度恐慌'); }
+  else if (vix > 25) { score += 5; reasons.push('VIX偏高=机会'); }
+  else if (vix > 20) { score += 2; }
+  else if (vix < 12) { score -= 4; reasons.push('VIX极低=自满'); }
 
-  return { score, signal, signalCls, reasons };
+  const fng = MARKET.fng;
+  if (fng < 25) { score += 8; reasons.push('极度恐慌=机会'); }
+  else if (fng < 40) { score += 4; reasons.push('市场恐惧'); }
+  else if (fng > 80) { score -= 7; reasons.push('极度贪婪=风险'); }
+  else if (fng > 60) { score -= 3; reasons.push('市场贪婪'); }
+
+  if (MARKET.cape > 35) { score -= 7; reasons.push('标普CAPE极端'); }
+  else if (MARKET.cape > 28) { score -= 3; reasons.push('标普CAPE偏高'); }
+
+  // Clamp and signal
+  score = Math.max(5, Math.min(98, Math.round(score)));
+  let signal, cls;
+  if (score >= 65) { signal = '买入建议'; cls = 'buy'; }
+  else if (score >= 40) { signal = '观望/定投'; cls = 'watch'; }
+  else { signal = '谨慎/回避'; cls = 'sell'; }
+
+  return { score, signal, cls, reasons: reasons.slice(0, 4) };
 }
 
-// ======================== Formatting ========================
-const F = n => n != null && !isNaN(n) ? Number(n).toFixed(2) : '--';
-const P = n => n != null && !isNaN(n) ? (parseFloat(n)>=0?'+':'')+parseFloat(n).toFixed(2)+'%' : '--';
-const Pc = n => { if(n==null) return ''; const v=parseFloat(n); if(v>0) return '#16a34a'; if(v<0) return '#dc2626'; return ''; };
-const sizeFmt = n => n ? (n>1e8?(n/1e8).toFixed(2)+'亿':(n/1e4).toFixed(0)+'万') : '--';
+// ======================== Sparkline ========================
+function drawSparkline(code, history) {
+  const wrap = document.getElementById('spark-' + code);
+  if (!wrap || !history || history.length < 5) return;
+  const filtered = history.slice(-132); // last ~6 months
+  if (filtered.length < 5) return;
 
-// ======================== Render ========================
-const charts = {};
-const cache = {};
-const timeRanges = { '1月':22, '3月':66, '6月':132, '1年':264, '全部':0 };
+  const min = Math.min(...filtered.map(d => d.nav));
+  const max = Math.max(...filtered.map(d => d.nav));
+  const range = max - min || 1;
+  const w = 300, h = 64, pad = 4;
 
-function filterHistory(history, range) {
-  if (!history || !history.length) return [];
-  const days = timeRanges[range] || 0;
-  if (!days) return history;
-  return history.slice(Math.max(0, history.length - days));
-}
-
-function renderChart(code, history, range) {
-  const wrap = document.getElementById('chart-'+code);
-  if (!wrap) return;
-  if (typeof Chart === 'undefined') {
-    wrap.innerHTML = '<div style="text-align:center;color:#999;padding:30px;font-size:.85em">走势图加载中...</div>';
-    return;
-  }
-
-  const filtered = filterHistory(history, range);
-  if (filtered.length < 2) return;
-
-  if (charts[code]) { charts[code].destroy(); delete charts[code]; }
-  const cv = wrap.querySelector('canvas');
-  if (cv) cv.remove();
-  const newCv = document.createElement('canvas');
-  wrap.appendChild(newCv);
-
-  const dates = filtered.map(d=>d.date);
-  const navs = filtered.map(d=>d.nav);
-  const fullHistory = history || [];
-  const ma60 = calcMA(fullHistory, 60);
-  const ma60filtered = ma60.filter(d => {
-    const firstDate = filtered[0].date;
-    const lastDate = filtered[filtered.length-1].date;
-    return d.date >= firstDate && d.date <= lastDate;
-  });
-
-  const datasets = [{
-    label: '单位净值', data: navs,
-    borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.06)',
-    borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.3
-  }];
-  if (ma60filtered.length > 0) {
-    datasets.push({
-      label: 'MA60', data: ma60filtered.map(d=>d.value),
-      borderColor: '#ea580c', borderWidth: 1, pointRadius: 0, fill: false,
-      borderDash: [4,2]
-    });
-  }
-
-  charts[code] = new Chart(newCv, {
-    type: 'line', data: { labels: dates, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position:'top', labels:{boxWidth:16,font:{size:10},usePointStyle:true} },
-        tooltip: { callbacks: { label: ctx => ctx.dataset.label+': '+ctx.raw.toFixed(4) } }
-      },
-      scales: {
-        x: { ticks:{maxTicksLimit:8,font:{size:9}}, grid:{display:false} },
-        y: { ticks:{font:{size:9},callback:v=>v.toFixed(3)}, grid:{color:'#f1f5f9'} }
-      },
-      interaction: { intersect:false, mode:'index' }
-    }
-  });
-}
-
-function renderCard(f) {
-  const sig = calcSignal(f);
-  const up = f.changePct > 0, down = f.changePct < 0;
-
-  // Returns
-  const rets = f.returns || {};
-  const retEls = Object.entries(rets).map(([k,v]) => {
-    const cls = v>0 ? 'up' : v<0 ? 'down' : 'flat';
-    return `<span class="ret-badge ${cls}">${k}: ${P(v)}</span>`;
+  const points = filtered.map((d, i) => {
+    const x = pad + (i / (filtered.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((d.nav - min) / range) * (h - pad * 2);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
 
-  // PE/PB gauge
-  const peGauge = f.pePercentile != null ? `
-    <div class="gauge-row">
-      <span class="gauge-label">PE分位</span>
-      <div class="gauge-bar-wrap"><div class="gauge-dot" style="left:${f.pePercentile}%"></div></div>
-      <span class="gauge-val">${f.pePercentile.toFixed(0)}%${f.pe ? ' (PE:'+F(f.pe)+')' : ''}</span>
+  const trend = filtered[filtered.length - 1].nav >= filtered[0].nav ? '#0ea371' : '#e5484d';
+  const gradId = 'grad-' + code;
+
+  wrap.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:64px">
+    <defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${trend}" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="${trend}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${pad},${h-pad} ${points} ${w-pad},${h-pad}"
+      fill="url(#${gradId})" stroke="none"/>
+    <polyline points="${points}" fill="none" stroke="${trend}" stroke-width="1.5" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+// ======================== Render ========================
+const F = n => n != null && !isNaN(n) ? Number(n).toFixed(2) : '--';
+const P = n => n != null && !isNaN(n) ? (n >= 0 ? '+' : '') + n.toFixed(2) + '%' : '--';
+const Pc = n => n != null ? (n > 0 ? 'var(--green)' : n < 0 ? 'var(--red)' : '') : '';
+
+function renderCard(fund) {
+  const sig = calcScore(fund);
+  const up = fund.changePct > 0, down = fund.changePct < 0;
+  const peInfo = getFundPE(fund.code);
+  const rets = fund.returns || {};
+
+  const retTags = ['1月','3月','6月','1年']
+    .filter(k => rets[k] != null)
+    .map(k => {
+      const v = rets[k];
+      const cls = v > 0 ? 'up' : v < 0 ? 'down' : '';
+      return `<span class="ret-tag ${cls}">${k} ${P(v)}</span>`;
+    }).join('');
+
+  const peBar = peInfo && peInfo.pct != null ? `
+    <div class="pe-row">
+      <span class="pe-label">PE分位</span>
+      <div class="pe-track"><div class="pe-dot" style="left:${peInfo.pct}%"></div></div>
+      <span class="pe-val">${peInfo.pct}% (PE ${peInfo.pe})</span>
     </div>` : '';
 
-  const pbGauge = f.pbPercentile != null ? `
-    <div class="gauge-row">
-      <span class="gauge-label">PB分位</span>
-      <div class="gauge-bar-wrap"><div class="gauge-dot" style="left:${f.pbPercentile}%"></div></div>
-      <span class="gauge-val">${f.pbPercentile.toFixed(0)}%${f.pb ? ' (PB:'+F(f.pb)+')' : ''}</span>
-    </div>` : '';
-
-  // Signal reasons
-  const reasonStr = sig.reasons.slice(0,4).map(r => `<span style="display:flex;align-items:center;gap:4px"><span class="signal-dot ${sig.signalCls.replace('signal-','')}"></span>${r}</span>`).join(' ');
+  const scoreColor = sig.score >= 65 ? 'var(--green)' : sig.score >= 40 ? 'var(--amber)' : 'var(--red)';
+  const reasonStr = sig.reasons.length
+    ? sig.reasons.map(r => `<span>${r}</span>`).join(' · ')
+    : '数据收集中';
 
   return `
-    <div class="fund-card" id="card-${f.code}">
-      <div class="card-header">
-        <div class="fund-title">${f.name || '基金'+f.code}</div>
-        <div class="fund-code">${f.code} · ${f.jzrq||''}</div>
-        <span class="signal ${sig.signalCls}">${sig.signal} (${sig.score}分)</span>
+    <div class="card" id="card-${fund.code}">
+      <div class="card-top">
+        <span class="card-name">${fund.name || '基金 ' + fund.code}</span>
+        <span class="card-code">${fund.code}</span>
+        <span class="card-badge badge-${sig.cls}">${sig.signal} ${sig.score}分</span>
       </div>
-      <div class="card-body">
-        <!-- Key metrics -->
-        <div class="metric-row">
-          <div class="metric-item">
-            <div class="m-label">单位净值</div>
-            <div class="m-value">${f.dwjz||'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">估算净值</div>
-            <div class="m-value" style="color:${up?'var(--green)':down?'var(--red)':''}">${f.gsz||'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">日涨跌</div>
-            <div class="m-value" style="color:${Pc(f.changePct)}">${f.changePct!=null?P(f.changePct):'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">最大回撤</div>
-            <div class="m-value">${f.maxDd!=null?F(f.maxDd)+'%':'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">夏普比率</div>
-            <div class="m-value">${f.sharpe!=null?F(f.sharpe):'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">卡玛比率</div>
-            <div class="m-value">${f.calmar!=null?F(f.calmar):'--'}</div>
-          </div>
+
+      <div class="metrics">
+        <div class="met">
+          <div class="met-label">单位净值</div>
+          <div class="met-value">${fund.dwjz || '--'}</div>
         </div>
-
-        <!-- Second row: more metrics -->
-        <div class="metric-row">
-          <div class="metric-item">
-            <div class="m-label">年化波动</div>
-            <div class="m-value">${f.vol!=null?F(f.vol)+'%':'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">月度胜率</div>
-            <div class="m-value">${f.winRate!=null?F(f.winRate)+'%':'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">偏离MA60</div>
-            <div class="m-value" style="color:${Pc(f.deviation)}">${f.deviation!=null?P(f.deviation):'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">基金规模</div>
-            <div class="m-value">${sizeFmt(f.fundSize)}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">近1年(官方)</div>
-            <div class="m-value" style="color:${f.s1n>0?'var(--green)':'var(--red)'}">${f.s1n!=null?F(f.s1n)+'%':'--'}</div>
-          </div>
-          <div class="metric-item">
-            <div class="m-label">近6月(官方)</div>
-            <div class="m-value" style="color:${f.s6y>0?'var(--green)':'var(--red)'}">${f.s6y!=null?F(f.s6y)+'%':'--'}</div>
-          </div>
+        <div class="met">
+          <div class="met-label">估算净值</div>
+          <div class="met-value" style="color:${up?'var(--green)':down?'var(--red)':''}">${fund.gsz || '--'}</div>
         </div>
-
-        ${peGauge}${pbGauge}
-
-        <div class="return-row">${retEls}</div>
-
-        ${reasonStr ? `<div class="signal-row">${reasonStr}</div>` : ''}
-
-        <div class="chart-section">
-          <div class="time-tabs" id="tabs-${f.code}">
-            ${Object.keys(timeRanges).map(r =>
-              `<button class="time-tab${r==='6月'?' active':''}" onclick="switchRange('${f.code}','${r}')">${r}</button>`
-            ).join('')}
-          </div>
-          <div class="chart-wrap" id="chart-${f.code}"></div>
+        <div class="met">
+          <div class="met-label">日涨跌</div>
+          <div class="met-value" style="color:${Pc(fund.changePct)}">${fund.changePct != null ? P(fund.changePct) : '--'}</div>
         </div>
+        <div class="met">
+          <div class="met-label">最大回撤</div>
+          <div class="met-value">${fund.maxDd != null ? F(fund.maxDd) + '%' : '--'}</div>
+        </div>
+        <div class="met">
+          <div class="met-label">MA60偏离</div>
+          <div class="met-value" style="color:${Pc(fund.deviation)}">${fund.deviation != null ? P(fund.deviation) : '--'}</div>
+        </div>
+        <div class="met">
+          <div class="met-label">近3月</div>
+          <div class="met-value" style="color:${Pc(rets['3月'])}">${rets['3月'] != null ? P(rets['3月']) : '--'}</div>
+        </div>
+        <div class="met">
+          <div class="met-label">近1年</div>
+          <div class="met-value" style="color:${Pc(rets['1年'])}">${rets['1年'] != null ? P(rets['1年']) : '--'}</div>
+        </div>
+        <div class="met">
+          <div class="met-label">净值日期</div>
+          <div class="met-value" style="font-size:.78em">${fund.jzrq || '--'}</div>
+        </div>
+      </div>
+
+      ${peBar}
+      <div class="rets">${retTags}</div>
+      <div class="spark-wrap" id="spark-${fund.code}"></div>
+
+      <div class="score-row">
+        <span class="score-label">综合评分</span>
+        <div class="score-bar-wrap">
+          <div class="score-bar-fill" style="width:${sig.score}%;background:${scoreColor}"></div>
+        </div>
+        <span class="score-num" style="color:${scoreColor}">${sig.score}</span>
+        <span class="score-breakdown">${reasonStr}</span>
       </div>
     </div>`;
 }
 
-function renderSummary() {
-  const funds = Object.values(cache);
-  if (!funds.length) return;
-  const buy = funds.filter(f => calcSignal(f).signalCls === 'signal-buy').length;
-  const watch = funds.filter(f => calcSignal(f).signalCls === 'signal-watch').length;
-  const sell = funds.filter(f => calcSignal(f).signalCls === 'signal-sell').length;
-  document.getElementById('buyCount').textContent = `🟢 买入信号 ${buy}`;
-  document.getElementById('watchCount').textContent = `🟡 观望 ${watch}`;
-  document.getElementById('sellCount').textContent = `🔴 谨慎 ${sell}`;
-  document.getElementById('headerMeta').textContent =
-    `数据更新：${new Date().toLocaleString('zh-CN')} ｜ 天天基金/东方财富 ｜ 评分仅参考`;
-}
-
-function renderAll(funds) {
-  renderSummary();
-  document.getElementById('fundList').innerHTML =
-    '<div class="fund-grid">' + funds.map(renderCard).join('') + '</div>';
-  document.getElementById('loadingMsg').style.display = 'none';
-  requestAnimationFrame(() => {
-    funds.forEach(f => {
-      if (f.history?.length >= 2) renderChart(f.code, f.history, '6月');
-    });
-  });
-}
-
-function switchRange(code, range) {
-  const f = cache[code];
-  if (!f) return;
-  // Update tabs
-  const tabs = document.getElementById('tabs-'+code);
-  if (tabs) {
-    tabs.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
-    const target = tabs.querySelector(`[onclick*="${range}"]`);
-    if (target) target.classList.add('active');
-  }
-  if (f.history?.length >= 2) renderChart(code, f.history, range);
-}
-
 // ======================== Core ========================
+const cache = {};
+const DEFAULT_FUNDS = ['040046', '050025', '022453', '007466'];
+const KEY = 'fund_codes_v3';
+
+function getCodes() {
+  try {
+    const v = localStorage.getItem(KEY);
+    return v ? JSON.parse(v) : [...DEFAULT_FUNDS];
+  } catch { return [...DEFAULT_FUNDS]; }
+}
+function saveCodes(codes) { localStorage.setItem(KEY, JSON.stringify(codes)); }
+
 async function loadFund(code) {
   let est = null;
-  try { est = await fetchEstimate(code); } catch(e) { /* */ }
+  try { est = await fetchEstimate(code); } catch (e) { /* */ }
 
-  let history = [];
-  let name = est?.name || '';
-  let s1n=null, s6y=null, s3y=null, s1y=null;
+  let historyData = [], name = est?.name || '', s1n = null, s6y = null;
   try {
-    const raw = await fetchHistory(code);
-    // Last element might be the metadata object
-    const last = raw[raw.length-1];
-    if (last && last.name !== undefined) {
-      const meta = raw.pop();
-      if (!name) name = meta.name;
-      s1n = meta.s1n ? parseFloat(meta.s1n) : null;
-      s6y = meta.s6y ? parseFloat(meta.s6y) : null;
-      s3y = meta.s3y ? parseFloat(meta.s3y) : null;
-      s1y = meta.s1y ? parseFloat(meta.s1y) : null;
-    }
-    history = raw;
-  } catch(e) { /* */ }
-
-  let peData = {};
-  try { peData = await fetchPE(code); } catch(e) { /* */ }
+    const result = await fetchHistory(code);
+    historyData = result.data || [];
+    if (result.name && !name) name = result.name;
+    s1n = result.s1n != null ? parseFloat(result.s1n) : null;
+    s6y = result.s6y != null ? parseFloat(result.s6y) : null;
+  } catch (e) { /* */ }
 
   const fund = {
     code, name,
@@ -624,45 +524,55 @@ async function loadFund(code) {
     changePct: est?.gszzl ? parseFloat(est.gszzl) : null,
     estTime: est?.gztime || null,
     jzrq: est?.jzrq || null,
-    returns: calcReturns(history),
-    maxDd: calcMaxDrawdown(history),
-    vol: calcAnnualVol(history),
-    sharpe: calcSharpe(history),
-    calmar: calcCalmar(history),
-    winRate: calcWinRate(history),
-    deviation: calcDeviation(history),
-    pe: peData.PE || null,
-    pePercentile: peData.PEPercentile != null ? parseFloat(peData.PEPercentile) : null,
-    pb: peData.PB || null,
-    pbPercentile: peData.PBPercentile != null ? parseFloat(peData.PBPercentile) : null,
-    fundSize: peData.FundSize || null,
-    s1n, s6y, s3y, s1y,
-    history
+    returns: calcReturns(historyData),
+    maxDd: calcMaxDrawdown(historyData),
+    deviation: calcDeviation(historyData),
+    s1n, s6y,
+    history: historyData
   };
   cache[code] = fund;
   return fund;
 }
 
+function renderAll(funds) {
+  document.getElementById('fundList').innerHTML =
+    '<div class="fund-grid">' + funds.map(renderCard).join('') + '</div>';
+  document.getElementById('loadingMsg').style.display = 'none';
+  funds.forEach(f => {
+    if (f.history?.length >= 5) drawSparkline(f.code, f.history);
+  });
+}
+
+function renderMarket() {
+  document.getElementById('mvix').textContent = MARKET.vix.toFixed(1);
+  document.getElementById('mfng').textContent = MARKET.fng;
+  const tag = document.getElementById('mfngTag');
+  tag.textContent = MARKET.fngLabel;
+  tag.className = 'mi-tag ' + (MARKET.fng > 60 ? 'greed' : MARKET.fng < 40 ? 'fear' : 'neutral');
+}
+
 async function refreshAll() {
   const codes = getCodes();
-  if (!codes.length) { document.getElementById('loadingMsg').innerHTML='请添加基金代码'; return; }
+  if (!codes.length) {
+    document.getElementById('loadingMsg').innerHTML = '请添加基金代码';
+    return;
+  }
   document.getElementById('loadingMsg').style.display = 'block';
-  document.getElementById('loadingMsg').innerHTML = '正在加载数据...';
+  document.getElementById('loadingMsg').innerHTML = '加载中...';
+  renderMarket();
+
   const funds = [];
   for (let i = 0; i < codes.length; i++) {
-    document.getElementById('loadingMsg').innerHTML = `加载中 ${codes[i]} (${i+1}/${codes.length})...`;
+    document.getElementById('loadingMsg').innerHTML =
+      `加载中 ${codes[i]} (${i + 1}/${codes.length})...`;
     funds.push(await loadFund(codes[i]));
   }
   renderAll(funds);
+  document.getElementById('updateTime').textContent =
+    '更新 ' + new Date().toLocaleString('zh-CN');
+  document.getElementById('cacheHint').textContent =
+    '已保存: ' + codes.join(', ');
 }
-
-// ======================== Fund Management ========================
-const KEY = 'fund_codes_v2';
-function getCodes() {
-  try { const v=localStorage.getItem(KEY); return v?JSON.parse(v):[...DEFAULT_FUNDS]; }
-  catch { return [...DEFAULT_FUNDS]; }
-}
-function saveCodes(codes) { localStorage.setItem(KEY, JSON.stringify(codes)); }
 
 async function addFunds() {
   const raw = document.getElementById('fundInput').value.trim();
@@ -674,41 +584,56 @@ async function addFunds() {
   await refreshAll();
 }
 
+// ======================== Live market fetch ========================
+async function tryFetchVIX() {
+  try {
+    const r = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX?interval=1d&range=5d');
+    if (!r.ok) throw new Error('err');
+    const j = await r.json();
+    const q = j?.chart?.result?.[0];
+    if (q) {
+      const closes = q.indicators?.quote?.[0]?.close?.filter(v => v != null) || [];
+      if (closes.length) {
+        MARKET.vix = closes[closes.length - 1];
+        const ts = q.timestamp?.[closes.length - 1];
+        if (ts) MARKET.vixDate = new Date(ts * 1000).toISOString().slice(0, 10);
+        renderMarket();
+      }
+    }
+  } catch (e) { /* keep hardcoded value */ }
+}
+
+async function tryFetchFNG() {
+  try {
+    const r = await fetch('https://production.dataviz.cnn.io/index/fearandgreed/graphdata');
+    if (!r.ok) throw new Error('err');
+    const j = await r.json();
+    if (j?.fear_and_greed) {
+      MARKET.fng = parseFloat(j.fear_and_greed.now.value);
+      MARKET.fngLabel = j.fear_and_greed.now.description || '';
+      MARKET.fngDate = new Date().toISOString().slice(0, 10);
+      renderMarket();
+    }
+  } catch (e) { /* keep hardcoded value */ }
+}
+
 // ======================== Init ========================
 (function init() {
+  renderMarket();
   const codes = getCodes();
   if (codes.length) {
     document.getElementById('fundInput').placeholder = `已保存: ${codes.join(', ')}`;
+    document.getElementById('cacheHint').textContent = '已保存: ' + codes.join(', ');
     refreshAll();
   }
+  // Try live market data in background
+  setTimeout(tryFetchVIX, 500);
+  setTimeout(tryFetchFNG, 800);
 })();
 
 document.getElementById('fundInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') addFunds();
 });
-
-// Chart.js async loader
-(function(){
-  const urls = [
-    'https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.0/chart.umd.min.js',
-    'https://unpkg.zhimg.com/chart.js@4.4.0/dist/chart.umd.min.js',
-    'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'
-  ];
-  function tryLoad(i) {
-    if (i >= urls.length) return;
-    const s = document.createElement('script');
-    s.src = urls[i];
-    s.onload = () => {
-      // Re-render charts
-      Object.entries(cache).forEach(([code, f]) => {
-        if (f.history?.length >= 2) renderChart(code, f.history, '6月');
-      });
-    };
-    s.onerror = () => tryLoad(i+1);
-    document.head.appendChild(s);
-  }
-  tryLoad(0);
-})();
 </script>
 </body>
 </html>
