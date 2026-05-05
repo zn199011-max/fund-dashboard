@@ -61,13 +61,14 @@ body {
 .mi-tag.extreme { background: #fee2e2; color: #7f1d1d; }
 
 /* ── Container ── */
-.container { max-width: 1100px; margin: auto; padding: 16px 20px; }
+.container { max-width: 1400px; margin: auto; padding: 16px 20px; }
 
 /* ── Fund grid ── */
 .fund-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
 }
-@media (max-width: 768px) { .fund-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .fund-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .fund-grid { grid-template-columns: 1fr; } }
 
 /* ── Card ── */
 .card {
