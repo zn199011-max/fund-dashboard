@@ -1,0 +1,150 @@
+{
+  "holdings": [
+    {
+      "platform": "京东金融",
+      "fund": "浙商积存金",
+      "code": "",
+      "category": "其他",
+      "value": 44602,
+      "cost": 49226,
+      "notes": "克重43.98, 成本均价1119.70/克, 持仓收益-4643.05"
+    },
+    {
+      "platform": "京东金融",
+      "fund": "天弘纳斯达克100指数发起(QDII)A",
+      "code": "",
+      "category": "美股QDII",
+      "value": 1184,
+      "cost": 1164
+    },
+    {
+      "platform": "京东金融",
+      "fund": "华夏国证自由现金流ETF发起式联接A",
+      "code": "023917",
+      "category": "A股红利",
+      "value": 2876,
+      "cost": 2858
+    },
+    {
+      "platform": "京东金融",
+      "fund": "摩根标普500指数(QDII)人民币A",
+      "code": "",
+      "category": "美股QDII",
+      "value": 1289,
+      "cost": 1286
+    },
+    {
+      "platform": "京东金融",
+      "fund": "易方达中证A500ETF联接A",
+      "code": "022459",
+      "category": "A股指数",
+      "value": 578,
+      "cost": 575
+    },
+    {
+      "platform": "京东金融",
+      "fund": "南方纳斯达克100指数发起(QDII)A",
+      "code": "",
+      "category": "美股QDII",
+      "value": 476,
+      "cost": 475
+    },
+    {
+      "platform": "京东金融",
+      "fund": "博时标普500ETF联接A",
+      "code": "050025",
+      "category": "美股QDII",
+      "value": 50,
+      "cost": 50
+    },
+    {
+      "platform": "支付宝",
+      "fund": "天弘全球高端制造混合(QDII)C",
+      "code": "",
+      "category": "行业主题",
+      "value": 866,
+      "cost": 868
+    },
+    {
+      "platform": "支付宝",
+      "fund": "广发远见智选混合C",
+      "code": "",
+      "category": "其他",
+      "value": 550,
+      "cost": 561
+    },
+    {
+      "platform": "支付宝",
+      "fund": "华泰柏瑞质量成长混合C",
+      "code": "",
+      "category": "A股指数",
+      "value": 583,
+      "cost": 600
+    },
+    {
+      "platform": "支付宝",
+      "fund": "华夏有色金属ETF联接C",
+      "code": "",
+      "category": "行业主题",
+      "value": 5385,
+      "cost": 5540
+    },
+    {
+      "platform": "支付宝",
+      "fund": "广发半导体材料设备主题ETF联接C",
+      "code": "",
+      "category": "行业主题",
+      "value": 2246,
+      "cost": 2013
+    },
+    {
+      "platform": "支付宝",
+      "fund": "易方达全球成长精选混合(QDII)C",
+      "code": "",
+      "category": "美股QDII",
+      "value": 879,
+      "cost": 799
+    },
+    {
+      "platform": "支付宝",
+      "fund": "永赢先锋半导体智选混合C",
+      "code": "",
+      "category": "行业主题",
+      "value": 407,
+      "cost": 400
+    },
+    {
+      "platform": "支付宝",
+      "fund": "富国中证细分化工产业主题ETF联接C",
+      "code": "",
+      "category": "行业主题",
+      "value": 1674,
+      "cost": 1674
+    },
+    {
+      "platform": "支付宝",
+      "fund": "华夏全球科技先锋混合(QDII)C",
+      "code": "",
+      "category": "行业主题",
+      "value": 1097,
+      "cost": 1097
+    },
+    {
+      "platform": "支付宝",
+      "fund": "易方达中证沪深港黄金产业股票指数C",
+      "code": "",
+      "category": "行业主题",
+      "value": 6994,
+      "cost": 7846
+    },
+    {
+      "platform": "支付宝",
+      "fund": "西部利得祥逸债券C",
+      "code": "",
+      "category": "债券固收",
+      "value": 10103,
+      "cost": 10089
+    }
+  ],
+  "updated": "2026-05-05 13:30:00"
+}

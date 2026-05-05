@@ -263,6 +263,7 @@ body {
       <span class="port-title">投资组合总览</span>
       <span style="font-size:.7em;color:var(--sub)" id="portUpdated"></span>
       <div class="port-actions">
+        <span id="serverStatus" style="font-size:.68em;color:var(--sub);margin-right:4px"></span>
         <button class="port-btn" onclick="scanFolder()" title="扫描桌面截图文件夹">📁 扫描截图</button>
         <button class="port-btn" onclick="togglePortEdit()">＋ 录入持仓</button>
         <button class="port-btn primary" onclick="refreshPortfolio()">⟳ 刷新</button>
@@ -920,6 +921,8 @@ async function tryFetchFNG() {
 
 // ======================== Portfolio ========================
 const PORT_KEY = 'portfolio_data_v1';
+const SERVER_URL = 'http://localhost:3000';
+let serverAvailable = false;
 const CAT_COLORS = {
   '美股QDII': '#3b6df0', 'A股指数': '#0ea371', 'A股红利': '#ea580c',
   '行业主题': '#8b5cf6', '债券固收': '#f59e0b', '现金/货基': '#94a3b8',
@@ -1052,35 +1055,104 @@ function removeHolding(index) {
   renderPortfolio();
 }
 
-function refreshPortfolio() {
-  renderPortfolio();
+async function refreshPortfolio() {
+  const synced = await syncFromServer();
+  if (!synced) renderPortfolio();
 }
 
-function scanFolder() {
-  // Display screenshot file list (can't auto-extract, but show what's there)
-  const files = [
-    { platform: '京东金融', file: 'a2386a4c...jpg', size: '495KB', date: '2026-05-02' },
-    { platform: '京东金融', file: 'adb8e0f4...jpg', size: '507KB', date: '2026-05-02' },
-    { platform: '京东金融', file: 'c039f5dc...jpg', size: '493KB', date: '2026-05-02' },
-    { platform: '支付宝', file: '834b4248...jpg', size: '580KB', date: '2026-05-02' },
-    { platform: '支付宝', file: '934e79f7...jpg', size: '572KB', date: '2026-05-02' },
-    { platform: '支付宝', file: 'bd966dbf...jpg', size: '603KB', date: '2026-05-02' }
-  ];
+async function scanFolder() {
   const el = document.getElementById('portFiles');
-  const grouped = {};
-  files.forEach(f => { (grouped[f.platform] = grouped[f.platform] || []).push(f); });
-  el.innerHTML = '<strong>截图文件列表</strong> (共'+files.length+'张) · 请对照录入持仓<br>' +
-    Object.entries(grouped).map(([plat, fs]) =>
-      `<b>${plat}</b>: ${fs.length}张 (${fs.map(f=>f.date).join(', ')})`
-    ).join(' &nbsp;|&nbsp; ') +
-    '<br><span style="opacity:.7">提示：自动识别截图内容需要AI OCR，当前请手动录入</span>';
   el.style.display = 'block';
+  el.innerHTML = '<span style="color:var(--sub)">正在扫描截图文件夹...</span>';
+
+  // First, try to get file list from server
+  try {
+    const r = await fetch(SERVER_URL + '/api/files');
+    if (r.ok) {
+      serverAvailable = true;
+      const data = await r.json();
+      const platforms = data.platforms || {};
+      const platNames = Object.keys(platforms);
+      if (data.total > 0) {
+        el.innerHTML = '<strong>截图文件列表</strong> (共' + data.total + '张) &nbsp;|&nbsp; ' +
+          platNames.map(p => '<b>' + p + '</b>: ' + platforms[p].count + '张 (' +
+            (platforms[p].files || []).map(f => f.date).join(', ') + ')'
+          ).join(' &nbsp;|&nbsp; ');
+
+        // Trigger AI extraction
+        el.innerHTML += '<br><span style="color:var(--blue);cursor:pointer" onclick="triggerExtract()">🤖 点击AI识别持仓数据</span>';
+        return;
+      } else {
+        el.innerHTML = '<span style="color:var(--sub)">未找到截图文件，请将截图放入桌面\\投资理财\\[平台名]\\ 文件夹</span>';
+        return;
+      }
+    }
+  } catch (e) { /* server not running */ }
+
+  // Fallback: show manual info
+  el.innerHTML = '<span style="color:var(--amber)">本地服务器未启动</span> · ' +
+    '请在 fund-dashboard 目录运行 <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">node server.js</code> 以启用AI识别<br>' +
+    '<span style="opacity:.7">或使用下方"录入持仓"手动添加</span>';
+}
+
+async function triggerExtract() {
+  const el = document.getElementById('portFiles');
+  el.innerHTML = '<span style="color:var(--blue)">正在AI识别截图中，请稍候...</span>';
+  try {
+    const r = await fetch(SERVER_URL + '/api/extract', { method: 'POST' });
+    const data = await r.json();
+    if (data.ok) {
+      el.innerHTML = '<span style="color:var(--green)">AI识别完成！提取到 ' + data.extracted + ' 笔持仓</span>';
+      // Save to localStorage as backup
+      const portData = { holdings: data.holdings, updated: new Date().toLocaleString('zh-CN') };
+      savePortfolio(portData);
+      renderPortfolio();
+    } else {
+      el.innerHTML = '<span style="color:var(--red)">AI识别失败: ' + (data.error || '未知错误') + '</span><br>' +
+        '<span style="opacity:.7">请确认：1) 已设置 ANTHROPIC_API_KEY 环境变量 2) 截图包含持仓明细页面</span>';
+    }
+  } catch (e) {
+    el.innerHTML = '<span style="color:var(--red)">连接服务器失败: ' + e.message + '</span>';
+  }
+}
+
+async function syncFromServer() {
+  try {
+    const r = await fetch(SERVER_URL + '/api/portfolio');
+    if (r.ok) {
+      serverAvailable = true;
+      const data = await r.json();
+      if (data.holdings && data.holdings.length > 0) {
+        savePortfolio(data);
+        renderPortfolio();
+        return true;
+      }
+    }
+  } catch (e) { serverAvailable = false; }
+  return false;
 }
 
 // ======================== Init ========================
-(function init() {
+(async function init() {
   renderMarket();
   renderPortfolio();
+  // Try to sync from local server first
+  try {
+    const r = await fetch(SERVER_URL + '/api/portfolio');
+    if (r.ok) {
+      serverAvailable = true;
+      document.getElementById('serverStatus').innerHTML = '🟢 本地服务已连接';
+      const data = await r.json();
+      if (data.holdings && data.holdings.length > 0) {
+        savePortfolio(data);
+        renderPortfolio();
+      }
+    }
+  } catch (e) {
+    serverAvailable = false;
+    document.getElementById('serverStatus').innerHTML = '🔴 本地服务未连接';
+  }
+
   const codes = getCodes();
   if (codes.length) {
     document.getElementById('fundInput').placeholder = `已保存: ${codes.join(', ')}`;
