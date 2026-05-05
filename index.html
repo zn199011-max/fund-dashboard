@@ -534,18 +534,31 @@ function renderCard(fund) {
       return `<span class="ret-tag ${cls}">${k} ${P(v)}</span>`;
     }).join('');
 
-  const peBar = peInfo ? (
-    peInfo.pct != null ? `
+  const peBar = (() => {
+    const label = peInfo?.label || 'PE';
+    if (peInfo && peInfo.pct != null) {
+      return `
     <div class="pe-row">
-      <span class="pe-label">${peInfo.label || 'PE'}分位</span>
+      <span class="pe-label">${label}分位</span>
       <div class="pe-track"><div class="pe-dot" style="left:${peInfo.pct}%"></div></div>
-      <span class="pe-val">${peInfo.pct}% (PE ${peInfo.pe})</span>
-    </div>` : `
+      <span class="pe-val">${peInfo.pct}% (PE ${F(peInfo.pe)})</span>
+    </div>`;
+    }
+    if (peInfo && peInfo.pe == null && peInfo.pct == null) {
+      return `
     <div class="pe-row">
-      <span class="pe-label">${peInfo.label || 'PE'}</span>
+      <span class="pe-label">${label}</span>
       <span class="pe-val" style="color:var(--sub)">不适用</span>
-    </div>`
-  ) : '';
+    </div>`;
+    }
+    // No PE info yet — show placeholder bar, API data may arrive on next refresh
+    return `
+    <div class="pe-row">
+      <span class="pe-label">PE分位</span>
+      <div class="pe-track" style="background:#e5e7eb"></div>
+      <span class="pe-val" style="color:var(--sub)">收集中…</span>
+    </div>`;
+  })();
 
   const scoreColor = sig.score >= 65 ? 'var(--green)' : sig.score >= 40 ? 'var(--amber)' : 'var(--red)';
   const reasonStr = sig.reasons.length
