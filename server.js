@@ -153,6 +153,184 @@ async function extractWithAI(filePaths) {
   });
 }
 
+const TESSERACT = 'C:/Program Files/Tesseract-OCR/tesseract.exe';
+const TESSDATA = require('os').homedir() + '/tessdata';
+
+// Run OCR on a single image
+function ocrImage(filePath) {
+  try {
+    const result = require('child_process').execSync(
+      `"${TESSERACT}" --tessdata-dir "${TESSDATA}" -l chi_sim "${filePath}" stdout`,
+      { timeout: 60000, encoding: 'utf8', maxBuffer: 1024 * 1024 }
+    );
+    return result;
+  } catch (e) {
+    return '';
+  }
+}
+
+// Known fund code mapping from name keywords
+const FUND_CODE_MAP = [
+  { keys: ['天弘纳斯达克','天弘纳指'], code: '019633', cat: '美股QDII' },
+  { keys: ['南方纳斯达克','南方纳指'], code: '016453', cat: '美股QDII' },
+  { keys: ['摩根标普500','摩根标普'], code: '019305', cat: '美股QDII' },
+  { keys: ['博时标普500','博时标普'], code: '050025', cat: '美股QDII' },
+  { keys: ['华夏国证自由现金流','华夏自由现金流'], code: '023917', cat: 'A股红利' },
+  { keys: ['易方达中证A500','易方达A500'], code: '022459', cat: 'A股指数' },
+  { keys: ['天弘全球高端制造'], code: '012560', cat: '行业主题' },
+  { keys: ['广发远见智选'], code: '022184', cat: '其他' },
+  { keys: ['华泰柏瑞质量成长','质量成长'], code: '011453', cat: 'A股指数' },
+  { keys: ['华夏有色金属','有色金属ETF'], code: '016650', cat: '行业主题' },
+  { keys: ['广发半导体材料','半导体材料设备'], code: '020980', cat: '行业主题' },
+  { keys: ['易方达全球成长精选','全球成长精选'], code: '018205', cat: '美股QDII' },
+  { keys: ['永赢先锋半导体','半导体智选'], code: '022636', cat: '行业主题' },
+  { keys: ['富国中证细分化工','细分化工'], code: '014173', cat: '行业主题' },
+  { keys: ['华夏全球科技先锋','全球科技先锋'], code: '018918', cat: '行业主题' },
+  { keys: ['易方达中证沪深港黄金','黄金产业股票'], code: '020963', cat: '行业主题' },
+  { keys: ['西部利得祥逸债券','祥逸债券'], code: '675163', cat: '债券固收' },
+  { keys: ['浙商积存金','积存金'], code: '', cat: '其他' },
+];
+
+function matchFundCode(name) {
+  for (const entry of FUND_CODE_MAP) {
+    for (const key of entry.keys) {
+      if (name.includes(key)) return { code: entry.code, cat: entry.cat };
+    }
+  }
+  return { code: '', cat: '其他' };
+}
+
+// Extract holdings from OCR text (handles multi-line fund names)
+function parseOCR(text, platform) {
+  const holdings = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Pattern: a line ending with a number like XXXX.XX (value) possibly followed by ±XX.XX (daily change)
+  // Fund names often span 2 lines: name part 1 + name part 2 (fund type suffix)
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Skip noise/header lines
+    if (/^(我|持|全|股|债|混|名|基|曾|副|[①②③④⑤⑥⑦⑧⑨⑩]|[<>$]{2,})/.test(line)) continue;
+    if (/^(基金|交易|限时|实物|黄金|积存|定投|更多|市场|投资|企|稳|金价)/.test(line)) continue;
+    if (line.length < 5) continue;
+
+    // Look for a value: number with 2 decimal places (like 1184.25, 44602.25, 10103.31)
+    const valMatch = line.match(/(\d{1,3}(?:,\d{3})*\.\d{2})/);
+    if (!valMatch) continue;
+
+    const valueStr = valMatch[1].replace(/,/g, '');
+    const value = parseFloat(valueStr);
+    if (value < 0.01 || value > 100000000) continue;
+
+    // Try to extract fund name from this line and possibly previous line
+    const beforeVal = line.substring(0, line.indexOf(valueStr)).trim();
+    // Remove common suffixes and junk
+    let namePart = beforeVal.replace(/^[<{[(\s]*/, '').replace(/[\s]*$/, '');
+
+    // If this looks like a continuation line (starts with fund type suffix), combine with previous
+    const prevLine = i > 0 ? lines[i-1].trim() : '';
+    let fullName = '';
+
+    if (/^(指数|ETF|混合|债券|联接|产业|发起|主题|股票|精选)/.test(namePart) && prevLine) {
+      // This is a continuation line - combine with previous
+      fullName = prevLine + namePart;
+    } else if (namePart && !/^[A-Z0-9\s.+\-%×()]+$/.test(namePart)) {
+      fullName = namePart;
+      // Check if next line is a continuation
+      if (i + 1 < lines.length) {
+        const nextLine = lines[i+1].trim();
+        if (/^(指数|ETF|混合|债券|联接|产业|发起|主题|股票|精选|积存)/.test(nextLine)) {
+          fullName += nextLine;
+        }
+      }
+    }
+
+    if (!fullName || fullName.length < 3) continue;
+
+    // Clean up name
+    fullName = fullName
+      .replace(/[<>[\]()（）{}«»「」『』【】]/g, '')
+      .replace(/^[\s,.，。、]+/, '')
+      .replace(/[\s,.，。、]+$/, '')
+      .replace(/\s+/g, '')
+      .trim();
+
+    // Skip if name is too short or looks like noise
+    if (fullName.length < 4) continue;
+
+    // Look for cost/gain info: ±XXXX.XX pattern
+    const gainMatch = line.match(/[+\-]\d{1,4}\.\d{2}/g);
+    const dailyGain = gainMatch ? parseFloat(gainMatch[0]) : 0;
+
+    // Estimate cost from holding P&L if available
+    // Try to find holding return rate on the same or next line
+    let cost = value;
+    const holdRetMatch = line.match(/[+\-](\d{1,2}\.\d{1,2})%/);
+    if (holdRetMatch) {
+      const retPct = parseFloat(holdRetMatch[1]);
+      if (retPct > -100 && retPct < 1000) {
+        cost = Math.round(value / (1 + retPct / 100));
+      }
+    }
+
+    const { code, cat } = matchFundCode(fullName);
+
+    holdings.push({
+      platform,
+      fund: fullName,
+      code,
+      category: cat,
+      value: Math.round(value),
+      cost: cost !== value ? Math.round(cost) : Math.round(value)
+    });
+  }
+
+  return holdings;
+}
+
+// OCR-based scan (no API key needed) - only adds new funds, never overwrites curated data
+function ocrScanAll() {
+  const screenshots = scanScreenshots();
+  const existing = readJSON(DATA_FILE, { holdings: [], updated: '' });
+
+  // Build set of existing fund key fragments for dedup
+  const existingKeys = existing.holdings.map(h =>
+    (h.platform + '|' + h.fund + '|' + (h.code || '')).toLowerCase()
+  );
+
+  for (const [platform, info] of Object.entries(screenshots.platforms)) {
+    for (const f of info.files) {
+      const text = ocrImage(f.path);
+      const ocrHoldings = parseOCR(text, platform);
+      for (const h of ocrHoldings) {
+        // Only add if genuinely new (no existing fund with same platform and overlapping name)
+        const hKey = (h.platform + '|' + h.fund).toLowerCase();
+        const isNew = !existingKeys.some(ek => {
+          const parts = ek.split('|');
+          const ekPlat = parts[0], ekFund = parts[1];
+          if (ekPlat !== h.platform.toLowerCase()) return false;
+          // Check significant overlap
+          const minLen = Math.min(h.fund.length, ekFund.length);
+          if (minLen < 5) return false;
+          const substr = h.fund.substring(0, Math.min(6, h.fund.length)).toLowerCase();
+          return ekFund.includes(substr) || h.fund.toLowerCase().includes(ekFund.substring(0, Math.min(6, ekFund.length)));
+        });
+        if (isNew && h.fund.length >= 4 && h.value > 0) {
+          existing.holdings.push(h);
+          existingKeys.push(hKey + '|' + (h.code || ''));
+        }
+      }
+    }
+  }
+
+  existing.updated = new Date().toLocaleString('zh-CN');
+  existing.lastScan = screenshots.scannedAt;
+  writeJSON(DATA_FILE, existing);
+  return existing;
+}
+
 // Request handler
 async function handle(req, res) {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -254,6 +432,22 @@ async function handle(req, res) {
       return;
     }
 
+    // ── API: OCR scan (no API key needed) ──
+    if (route === '/api/ocr-scan' && req.method === 'POST') {
+      try {
+        const screenshots = scanScreenshots();
+        if (!screenshots.total) {
+          jsonReply(res, { ok: false, error: '未找到截图文件' }, 404);
+          return;
+        }
+        const data = ocrScanAll();
+        jsonReply(res, { ok: true, total: data.holdings.length, holdings: data.holdings, scannedAt: data.lastScan });
+      } catch (e) {
+        jsonReply(res, { ok: false, error: 'OCR扫描失败: ' + e.message }, 500);
+      }
+      return;
+    }
+
     // ── 404 ──
     res.writeHead(404);
     res.end('Not found');
@@ -269,6 +463,7 @@ server.listen(PORT, () => {
   console.log(`仪表盘页面: http://localhost:${PORT}/`);
   console.log(`API - 文件列表: http://localhost:${PORT}/api/files`);
   console.log(`API - 持仓数据: http://localhost:${PORT}/api/portfolio`);
+  console.log(`API - OCR扫描: POST http://localhost:${PORT}/api/ocr-scan`);
   console.log(`API - AI提取: POST http://localhost:${PORT}/api/extract`);
   if (!process.env.ANTHROPIC_API_KEY) {
     console.log('⚠ 未设置 ANTHROPIC_API_KEY 环境变量，AI提取功能不可用');

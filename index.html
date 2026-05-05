@@ -1087,7 +1087,7 @@ function removeHolding(index) {
 }
 
 async function refreshPortfolio() {
-  const synced = await syncFromServer();
+  const synced = await syncFromServer(true);
   if (!synced) renderPortfolio();
 }
 
@@ -1111,7 +1111,7 @@ async function scanFolder() {
           ).join(' &nbsp;|&nbsp; ');
 
         // Trigger AI extraction
-        el.innerHTML += '<br><span style="color:var(--blue);cursor:pointer" onclick="triggerExtract()">🤖 点击AI识别持仓数据</span>';
+        el.innerHTML += '<br><span style="color:var(--blue);cursor:pointer" onclick="triggerExtract()">🔍 点击OCR识别持仓数据</span>';
         return;
       } else {
         el.innerHTML = '<span style="color:var(--sub)">未找到截图文件，请将截图放入桌面\\投资理财\\[平台名]\\ 文件夹</span>';
@@ -1128,35 +1128,51 @@ async function scanFolder() {
 
 async function triggerExtract() {
   const el = document.getElementById('portFiles');
-  el.innerHTML = '<span style="color:var(--blue)">正在AI识别截图中，请稍候...</span>';
+  el.innerHTML = '<span style="color:var(--blue)">正在OCR识别截图中，约需30秒...</span>';
   try {
-    const r = await fetch(SERVER_URL + '/api/extract', { method: 'POST' });
+    const r = await fetch(SERVER_URL + '/api/ocr-scan', { method: 'POST' });
     const data = await r.json();
     if (data.ok) {
-      el.innerHTML = '<span style="color:var(--green)">AI识别完成！提取到 ' + data.extracted + ' 笔持仓</span>';
-      // Save to localStorage as backup
+      el.innerHTML = '<span style="color:var(--green)">OCR识别完成！提取到 ' + data.total + ' 笔持仓 (' + (data.scannedAt || '') + ')</span>';
       const portData = { holdings: data.holdings, updated: new Date().toLocaleString('zh-CN') };
       savePortfolio(portData);
       renderPortfolio();
     } else {
-      el.innerHTML = '<span style="color:var(--red)">AI识别失败: ' + (data.error || '未知错误') + '</span><br>' +
-        '<span style="opacity:.7">请确认：1) 已设置 ANTHROPIC_API_KEY 环境变量 2) 截图包含持仓明细页面</span>';
+      el.innerHTML = '<span style="color:var(--red)">OCR识别失败: ' + (data.error || '未知错误') + '</span><br>' +
+        '<span style="opacity:.7">请确认截图文件夹中存在截图文件</span>';
     }
   } catch (e) {
     el.innerHTML = '<span style="color:var(--red)">连接服务器失败: ' + e.message + '</span>';
   }
 }
 
-async function syncFromServer() {
+async function syncFromServer(forceScan) {
   try {
-    const r = await fetch(SERVER_URL + '/api/portfolio');
-    if (r.ok) {
-      serverAvailable = true;
-      const data = await r.json();
-      if (data.holdings && data.holdings.length > 0) {
-        savePortfolio(data);
-        renderPortfolio();
-        return true;
+    if (forceScan) {
+      // Run OCR re-scan for latest data
+      const r = await fetch(SERVER_URL + '/api/ocr-scan', { method: 'POST' });
+      if (r.ok) {
+        serverAvailable = true;
+        const data = await r.json();
+        if (data.ok && data.holdings && data.holdings.length > 0) {
+          savePortfolio({ holdings: data.holdings, updated: new Date().toLocaleString('zh-CN') });
+          renderPortfolio();
+          document.getElementById('portFiles').innerHTML = '<span style="color:var(--green)">OCR刷新完成: ' + data.total + ' 笔持仓 (' + (data.scannedAt || '') + ')</span>';
+          document.getElementById('portFiles').style.display = 'block';
+          return true;
+        }
+      }
+    } else {
+      // Just pull cached data
+      const r = await fetch(SERVER_URL + '/api/portfolio');
+      if (r.ok) {
+        serverAvailable = true;
+        const data = await r.json();
+        if (data.holdings && data.holdings.length > 0) {
+          savePortfolio(data);
+          renderPortfolio();
+          return true;
+        }
       }
     }
   } catch (e) { serverAvailable = false; }

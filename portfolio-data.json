@@ -7,12 +7,12 @@
       "category": "其他",
       "value": 44602,
       "cost": 49226,
-      "notes": "克重43.98, 成本均价1119.70/克, 持仓收益-4643.05"
+      "notes": "克重43.98, 成本均价1119.70/克"
     },
     {
       "platform": "京东金融",
       "fund": "天弘纳斯达克100指数发起(QDII)A",
-      "code": "",
+      "code": "019633",
       "category": "美股QDII",
       "value": 1184,
       "cost": 1164
@@ -28,7 +28,7 @@
     {
       "platform": "京东金融",
       "fund": "摩根标普500指数(QDII)人民币A",
-      "code": "",
+      "code": "019305",
       "category": "美股QDII",
       "value": 1289,
       "cost": 1286
@@ -44,7 +44,7 @@
     {
       "platform": "京东金融",
       "fund": "南方纳斯达克100指数发起(QDII)A",
-      "code": "",
+      "code": "016453",
       "category": "美股QDII",
       "value": 476,
       "cost": 475
@@ -60,7 +60,7 @@
     {
       "platform": "支付宝",
       "fund": "天弘全球高端制造混合(QDII)C",
-      "code": "",
+      "code": "012560",
       "category": "行业主题",
       "value": 866,
       "cost": 868
@@ -68,7 +68,7 @@
     {
       "platform": "支付宝",
       "fund": "广发远见智选混合C",
-      "code": "",
+      "code": "022184",
       "category": "其他",
       "value": 550,
       "cost": 561
@@ -76,7 +76,7 @@
     {
       "platform": "支付宝",
       "fund": "华泰柏瑞质量成长混合C",
-      "code": "",
+      "code": "011453",
       "category": "A股指数",
       "value": 583,
       "cost": 600
@@ -84,7 +84,7 @@
     {
       "platform": "支付宝",
       "fund": "华夏有色金属ETF联接C",
-      "code": "",
+      "code": "016650",
       "category": "行业主题",
       "value": 5385,
       "cost": 5540
@@ -92,7 +92,7 @@
     {
       "platform": "支付宝",
       "fund": "广发半导体材料设备主题ETF联接C",
-      "code": "",
+      "code": "020980",
       "category": "行业主题",
       "value": 2246,
       "cost": 2013
@@ -100,7 +100,7 @@
     {
       "platform": "支付宝",
       "fund": "易方达全球成长精选混合(QDII)C",
-      "code": "",
+      "code": "018205",
       "category": "美股QDII",
       "value": 879,
       "cost": 799
@@ -108,7 +108,7 @@
     {
       "platform": "支付宝",
       "fund": "永赢先锋半导体智选混合C",
-      "code": "",
+      "code": "022636",
       "category": "行业主题",
       "value": 407,
       "cost": 400
@@ -116,7 +116,7 @@
     {
       "platform": "支付宝",
       "fund": "富国中证细分化工产业主题ETF联接C",
-      "code": "",
+      "code": "014173",
       "category": "行业主题",
       "value": 1674,
       "cost": 1674
@@ -124,7 +124,7 @@
     {
       "platform": "支付宝",
       "fund": "华夏全球科技先锋混合(QDII)C",
-      "code": "",
+      "code": "018918",
       "category": "行业主题",
       "value": 1097,
       "cost": 1097
@@ -132,7 +132,7 @@
     {
       "platform": "支付宝",
       "fund": "易方达中证沪深港黄金产业股票指数C",
-      "code": "",
+      "code": "020963",
       "category": "行业主题",
       "value": 6994,
       "cost": 7846
@@ -140,11 +140,12 @@
     {
       "platform": "支付宝",
       "fund": "西部利得祥逸债券C",
-      "code": "",
+      "code": "675163",
       "category": "债券固收",
       "value": 10103,
       "cost": 10089
     }
   ],
-  "updated": "2026-05-05 13:30:00"
+  "updated": "2026/5/5 13:56:00",
+  "lastScan": "2026-05-05T05:55:54.766Z"
 }
