@@ -231,13 +231,45 @@ const MARKET = {
   fcfePE: 16.1, fcfePct: 65  // 国证自由现金流
 };
 
-function getFundPE(code) {
-  // Index-level PE data — maps funds to their tracking indices
-  if (code === '040046') return { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' };
-  if (code === '050025') return { pe: 24.6, pct: 92, label: '标普500' };
-  if (code === '022459') return { pe: MARKET.a500PE, pct: MARKET.a500Pct, label: '中证A500' };
-  if (code === '007466') return { pe: MARKET.divPE, pct: MARKET.divPct, label: '红利低波' };
-  if (code === '023917') return { pe: MARKET.fcfePE, pct: MARKET.fcfePct, label: '自由现金流' };
+function getFundPE(code, fundName) {
+  // 1. Exact code match for default funds
+  const codeMap = {
+    '040046': { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' },
+    '050025': { pe: 24.6, pct: 92, label: '标普500' },
+    '022459': { pe: MARKET.a500PE, pct: MARKET.a500Pct, label: '中证A500' },
+    '007466': { pe: MARKET.divPE, pct: MARKET.divPct, label: '红利低波' },
+    '023917': { pe: MARKET.fcfePE, pct: MARKET.fcfePct, label: '自由现金流' }
+  };
+  if (codeMap[code]) return codeMap[code];
+
+  // 2. Keyword match from fund name (supports any manually added index fund)
+  const name = (fundName || '').toUpperCase();
+  const kw = [
+    { keys: ['纳斯达克','纳指','NASDAQ','NDX'], pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' },
+    { keys: ['标普','标准普尔','S&P','SP500','S&P500'], pe: 24.6, pct: 92, label: '标普500' },
+    { keys: ['A500','中证A500'], pe: MARKET.a500PE, pct: MARKET.a500Pct, label: '中证A500' },
+    { keys: ['红利低波','中证红利低波'], pe: MARKET.divPE, pct: MARKET.divPct, label: '红利低波' },
+    { keys: ['自由现金流','FCF','国证自由现金流'], pe: MARKET.fcfePE, pct: MARKET.fcfePct, label: '自由现金流' },
+    { keys: ['沪深300','HS300'], pe: 13.5, pct: 55, label: '沪深300' },
+    { keys: ['中证500','ZZ500'], pe: 22.3, pct: 48, label: '中证500' },
+    { keys: ['创业板指','创业板','GEM'], pe: 35.2, pct: 28, label: '创业板指' },
+    { keys: ['科创50','科创板50','STAR50'], pe: 52.1, pct: 42, label: '科创50' },
+    { keys: ['中证红利','红利指数','CSIH'], pe: 7.8, pct: 65, label: '中证红利' },
+    { keys: ['恒生','HSI','恒指'], pe: 10.2, pct: 40, label: '恒生指数' },
+    { keys: ['日经','NIKKEI','NKY'], pe: 19.5, pct: 62, label: '日经225' },
+    { keys: ['德国DAX','DAX'], pe: 15.1, pct: 55, label: '德国DAX' },
+    { keys: ['印度','NIFTY','SENSEX'], pe: 23.8, pct: 72, label: '印度Nifty' },
+    { keys: ['越南','VN30'], pe: 12.3, pct: 35, label: '越南VN30' },
+    { keys: ['黄金','GOLD','AU'], pe: null, pct: null, label: '黄金(无PE)' },
+    { keys: ['债券','债','BOND','国债','利率债','信用债'], pe: null, pct: null, label: '债券(无PE)' }
+  ];
+  for (const entry of kw) {
+    for (const key of entry.keys) {
+      if (name.includes(key)) {
+        return { pe: entry.pe, pct: entry.pct, label: entry.label };
+      }
+    }
+  }
   return null;
 }
 
@@ -328,7 +360,7 @@ function calcScore(fund) {
   const reasons = [];
 
   // --- Fund factors (±30) ---
-  const peInfo = getFundPE(fund.code);
+  const peInfo = getFundPE(fund.code, fund.name);
   if (peInfo && peInfo.pct != null) {
     if (peInfo.pct < 20) { score += 15; reasons.push('PE极度低估'); }
     else if (peInfo.pct < 35) { score += 10; reasons.push('PE较低'); }
@@ -482,7 +514,7 @@ const Pc = n => n != null ? (n > 0 ? 'var(--green)' : n < 0 ? 'var(--red)' : '')
 function renderCard(fund) {
   const sig = calcScore(fund);
   const up = fund.changePct > 0, down = fund.changePct < 0;
-  const peInfo = getFundPE(fund.code);
+  const peInfo = getFundPE(fund.code, fund.name);
   const rets = fund.returns || {};
 
   const retTags = ['1月','3月','6月','1年']
@@ -493,12 +525,18 @@ function renderCard(fund) {
       return `<span class="ret-tag ${cls}">${k} ${P(v)}</span>`;
     }).join('');
 
-  const peBar = peInfo && peInfo.pct != null ? `
+  const peBar = peInfo ? (
+    peInfo.pct != null ? `
     <div class="pe-row">
       <span class="pe-label">${peInfo.label || 'PE'}分位</span>
       <div class="pe-track"><div class="pe-dot" style="left:${peInfo.pct}%"></div></div>
       <span class="pe-val">${peInfo.pct}% (PE ${peInfo.pe})</span>
-    </div>` : '';
+    </div>` : `
+    <div class="pe-row">
+      <span class="pe-label">${peInfo.label || 'PE'}</span>
+      <span class="pe-val" style="color:var(--sub)">不适用</span>
+    </div>`
+  ) : '';
 
   const scoreColor = sig.score >= 65 ? 'var(--green)' : sig.score >= 40 ? 'var(--amber)' : 'var(--red)';
   const reasonStr = sig.reasons.length
