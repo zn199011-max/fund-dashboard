@@ -231,7 +231,7 @@ const MARKET = {
   fcfePE: 16.1, fcfePct: 65  // 国证自由现金流
 };
 
-function getFundPE(code, fundName) {
+function getFundPE(code, fundName, apiPE) {
   // 1. Exact code match for default funds
   const codeMap = {
     '040046': { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' },
@@ -269,6 +269,15 @@ function getFundPE(code, fundName) {
         return { pe: entry.pe, pct: entry.pct, label: entry.label };
       }
     }
+  }
+
+  // 3. Fallback to Eastmoney API data
+  if (apiPE && (apiPE.pe != null || apiPE.pct != null)) {
+    return {
+      pe: apiPE.pe != null ? apiPE.pe : null,
+      pct: apiPE.pct != null ? apiPE.pct : null,
+      label: '基金PE'
+    };
   }
   return null;
 }
@@ -360,7 +369,7 @@ function calcScore(fund) {
   const reasons = [];
 
   // --- Fund factors (±30) ---
-  const peInfo = getFundPE(fund.code, fund.name);
+  const peInfo = getFundPE(fund.code, fund.name, fund.apiPE);
   if (peInfo && peInfo.pct != null) {
     if (peInfo.pct < 20) { score += 15; reasons.push('PE极度低估'); }
     else if (peInfo.pct < 35) { score += 10; reasons.push('PE较低'); }
@@ -514,7 +523,7 @@ const Pc = n => n != null ? (n > 0 ? 'var(--green)' : n < 0 ? 'var(--red)' : '')
 function renderCard(fund) {
   const sig = calcScore(fund);
   const up = fund.changePct > 0, down = fund.changePct < 0;
-  const peInfo = getFundPE(fund.code, fund.name);
+  const peInfo = getFundPE(fund.code, fund.name, fund.apiPE);
   const rets = fund.returns || {};
 
   const retTags = ['1月','3月','6月','1年']
@@ -620,6 +629,26 @@ function getCodes() {
 }
 function saveCodes(codes) { localStorage.setItem(KEY, JSON.stringify(codes)); }
 
+async function fetchFundPE(code) {
+  // Try Eastmoney fund info API for PE/PB data
+  try {
+    const r = await fetch(`https://api.fund.eastmoney.com/f10/FundTradeInfo?fundcode=${code}`, {
+      headers: { Referer: 'https://fund.eastmoney.com/' }
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const d = j?.Data;
+    if (!d) return null;
+    return {
+      pe: d.PE != null ? parseFloat(d.PE) : null,
+      pct: d.PEPercentile != null ? parseFloat(d.PEPercentile) : null,
+      pb: d.PB != null ? parseFloat(d.PB) : null,
+      pctPB: d.PBPercentile != null ? parseFloat(d.PBPercentile) : null,
+      size: d.FundSize || null
+    };
+  } catch (e) { return null; }
+}
+
 async function loadFund(code) {
   let est = null;
   try { est = await fetchEstimate(code); } catch (e) { /* */ }
@@ -633,6 +662,10 @@ async function loadFund(code) {
     s6y = result.s6y != null ? parseFloat(result.s6y) : null;
   } catch (e) { /* */ }
 
+  // Try to get PE data from Eastmoney API (non-blocking)
+  let apiPE = null;
+  try { apiPE = await fetchFundPE(code); } catch (e) { /* */ }
+
   const fund = {
     code, name,
     dwjz: est?.dwjz || null,
@@ -644,7 +677,8 @@ async function loadFund(code) {
     maxDd: calcMaxDrawdown(historyData),
     deviation: calcDeviation(historyData),
     s1n, s6y,
-    history: historyData
+    history: historyData,
+    apiPE // Eastmoney PE data fallback
   };
   cache[code] = fund;
   return fund;
