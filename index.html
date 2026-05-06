@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>基金投资仪表盘</title>
+<script src="https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
 <style>
 :root {
   --bg: #f6f7f9;
@@ -233,6 +234,45 @@ body {
 .port-edit-row input.wide { width: 110px; }
 .port-files { font-size: .72em; color: var(--sub); margin-top: 6px; }
 .port-files a { color: var(--blue); }
+
+/* ── Donut charts ── */
+.charts-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 12px 0;
+}
+@media (max-width: 700px) { .charts-row { grid-template-columns: 1fr; } }
+.chart-box {
+  background: #f8f9fb; border-radius: var(--radius); padding: 12px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.chart-box .chart-title {
+  font-size: .78em; font-weight: 700; color: var(--text); margin-bottom: 4px;
+}
+.chart-box .chart-sub {
+  font-size: .68em; color: var(--sub); margin-bottom: 8px;
+}
+.chart-box canvas { max-height: 220px; }
+
+/* Invest category badges */
+.badge-core { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 10px; font-size: .7em; font-weight: 700; }
+.badge-sat { background: #ffedd5; color: #9a3412; padding: 2px 8px; border-radius: 10px; font-size: .7em; font-weight: 700; }
+.badge-def { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 10px; font-size: .7em; font-weight: 700; }
+
+/* Invest category breakdown bar */
+.invest-bar-wrap { margin: 10px 0; }
+.invest-bar-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: .75em;
+}
+.invest-bar-label { min-width: 56px; font-weight: 700; white-space: nowrap; }
+.invest-bar-track { flex: 1; height: 20px; border-radius: 4px; background: #e5e7eb; overflow: hidden; position: relative; }
+.invest-bar-fill { height: 100%; border-radius: 4px; transition: width .4s; display: flex; align-items: center; padding-left: 8px; font-size: .75em; font-weight: 700; color: #fff; }
+.invest-bar-val { min-width: 100px; text-align: right; font-weight: 600; white-space: nowrap; }
+
+/* PE badges */
+.pe-badge { padding: 2px 6px; border-radius: 4px; font-size: .72em; font-weight: 700; white-space: nowrap; }
+.pe-low { background: #d1fae5; color: #065f46; }
+.pe-fair { background: #fef3c7; color: #92400e; }
+.pe-high { background: #fee2e2; color: #991b1b; }
+.pe-na { background: #f1f5f9; color: #64748b; }
 </style>
 </head>
 <body>
@@ -264,13 +304,30 @@ body {
       <span style="font-size:.7em;color:var(--sub)" id="portUpdated"></span>
       <div class="port-actions">
         <span id="serverStatus" style="font-size:.68em;color:var(--sub);margin-right:4px"></span>
-        <button class="port-btn" onclick="scanFolder()" title="扫描桌面截图文件夹">📁 扫描截图</button>
+        <button class="port-btn primary" onclick="ocrScan()" title="从截图文件夹自动识别持仓">📷 识别截图</button>
         <button class="port-btn" onclick="togglePortEdit()">＋ 录入持仓</button>
-        <button class="port-btn primary" onclick="refreshPortfolio()">⟳ 刷新</button>
+        <button class="port-btn" onclick="refreshPortfolio()">⟳ 刷新</button>
       </div>
     </div>
 
     <div class="port-summary" id="portSummary"></div>
+
+    <!-- Donut charts: platform + investCategory -->
+    <div class="charts-row">
+      <div class="chart-box">
+        <div class="chart-title">平台分布</div>
+        <div class="chart-sub" id="chartPlatformSub"></div>
+        <canvas id="chartPlatform"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">仓位结构</div>
+        <div class="chart-sub" id="chartInvestSub"></div>
+        <canvas id="chartInvest"></canvas>
+      </div>
+    </div>
+
+    <!-- Invest category breakdown bar -->
+    <div class="invest-bar-wrap" id="investBarWrap"></div>
 
     <div class="port-cats" id="portCats"></div>
     <div class="port-cat-legend" id="portLegend"></div>
@@ -284,6 +341,7 @@ body {
         <input class="wide" id="peFund" placeholder="基金/品种名称">
         <input id="peCode" placeholder="代码(选填)">
         <select id="peCat"><option>美股QDII</option><option>A股指数</option><option>A股红利</option><option>行业主题</option><option>债券固收</option><option>现金/货基</option><option>其他</option></select>
+        <select id="peInvest"><option>核心底仓</option><option>卫星仓位</option><option>防御对冲</option></select>
         <input id="peValue" placeholder="持仓市值">
         <input id="peCost" placeholder="成本(选填)">
         <button class="port-btn primary" onclick="addHolding()">保存</button>
@@ -311,9 +369,9 @@ body {
 <script>
 // ======================== Market data ========================
 const MARKET = {
-  vix: 17.1, vixDate: '2026-05-01',
-  fng: 66, fngLabel: '贪婪', fngDate: '2026-05-04',
-  cape: 38.5, // S&P 500 Shiller CAPE
+  vix: 16.93, vixDate: '2026-05-06',
+  fng: 67, fngLabel: '贪婪', fngDate: '2026-05-06',
+  cape: 41.24, // S&P 500 Shiller CAPE
   nasPE: 33.8, nasPct: 85,
   a500PE: 17.8, a500Pct: 78,
   divPE: 8.5, divPct: 78,
@@ -323,11 +381,23 @@ const MARKET = {
 function getFundPE(code, fundName) {
   // 1. Exact code match
   const codeMap = {
-    '040046': { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' },
+    '018043': { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' },
+    '016452': { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '纳指100' },
+    '017641': { pe: 24.6, pct: 92, label: '标普500' },
     '050025': { pe: 24.6, pct: 92, label: '标普500' },
     '022459': { pe: MARKET.a500PE, pct: MARKET.a500Pct, label: '中证A500' },
-    '007466': { pe: MARKET.divPE, pct: MARKET.divPct, label: '红利低波' },
-    '023917': { pe: MARKET.fcfePE, pct: MARKET.fcfePct, label: '自由现金流' }
+    '023917': { pe: MARKET.fcfePE, pct: MARKET.fcfePct, label: '自由现金流' },
+    '011452': { pe: 22.5, pct: 55, label: '质量成长' },
+    '012922': { pe: MARKET.nasPE, pct: MARKET.nasPct, label: '全球成长' },
+    '016665': { pe: 28.5, pct: 62, label: '全球高端制造' },
+    '016708': { pe: 18.5, pct: 42, label: '有色金属' },
+    '020640': { pe: 58.3, pct: 45, label: '芯片产业' },
+    '024239': { pe: 32.5, pct: 52, label: '科技龙头' },
+    '025209': { pe: 58.3, pct: 45, label: '芯片产业' },
+    '020274': { pe: 22.8, pct: 25, label: '细分化工' },
+    '021363': { pe: null, pct: null, label: '黄金产业(无PE)' },
+    '016874': { pe: 14.5, pct: 52, label: '混合基金' },
+    '675093': { pe: null, pct: null, label: '债券(无PE)' }
   };
   if (codeMap[code]) return codeMap[code];
 
@@ -756,10 +826,22 @@ const DEFAULT_FUNDS = ['040046', '050025', '022459', '007466', '023917'];
 const KEY = 'fund_codes_v4';
 
 function getCodes() {
+  const data = getPortfolio();
+  // Only OTC mutual fund codes (0xxxxx) can be loaded from 天天基金 API
+  const portfolioCodes = [...new Set((data.holdings||[])
+    .map(x => x.code)
+    .filter(c => c && /^0\d{5}$/.test(c)))];
+
+  if (portfolioCodes.length > 0) {
+    // Portfolio is the sole source of truth — clear stale localStorage
+    saveCodes(portfolioCodes);
+    return portfolioCodes;
+  }
+  // No portfolio data: fall back to saved custom codes
   try {
     const v = localStorage.getItem(KEY);
-    return v ? JSON.parse(v) : [...DEFAULT_FUNDS];
-  } catch { return [...DEFAULT_FUNDS]; }
+    return v ? JSON.parse(v) : [];
+  } catch { return []; }
 }
 function saveCodes(codes) { localStorage.setItem(KEY, JSON.stringify(codes)); }
 
@@ -767,14 +849,16 @@ async function loadFund(code) {
   let est = null;
   try { est = await fetchEstimate(code); } catch (e) { /* */ }
 
-  let historyData = [], name = est?.name || '', s1n = null, s6y = null;
+  let historyData = [], s1n = null, s6y = null;
+  const portfolioName = getPortfolioName(code);
   try {
     const result = await fetchHistory(code);
     historyData = result.data || [];
-    if (result.name && !name) name = result.name;
     s1n = result.s1n != null ? parseFloat(result.s1n) : null;
     s6y = result.s6y != null ? parseFloat(result.s6y) : null;
   } catch (e) { /* */ }
+  // Portfolio name is authoritative — API names may differ from actual holdings
+  const name = portfolioName || est?.name || '';
 
   const fund = {
     code, name,
@@ -861,7 +945,8 @@ async function addFunds() {
   if (!raw) return;
   const newCodes = raw.split(/[,，\s]+/).filter(c => /^\d{6}$/.test(c));
   if (!newCodes.length) { alert('请输入6位数字基金代码'); return; }
-  saveCodes([...new Set([...getCodes(), ...newCodes])]);
+  const portfolioCodes = [...new Set((getPortfolio().holdings||[]).map(x => x.code).filter(c => c && /^\d{6}$/.test(c)))];
+  saveCodes([...new Set([...portfolioCodes, ...newCodes])]);
   document.getElementById('fundInput').value = '';
   await refreshAll();
 }
@@ -922,13 +1007,16 @@ async function tryFetchFNG() {
 
 // ======================== Portfolio ========================
 const PORT_KEY = 'portfolio_data_v1';
-const SERVER_URL = 'http://localhost:3000';
+const SERVER_URL = 'http://localhost:3001';
 let serverAvailable = false;
 const CAT_COLORS = {
   '美股QDII': '#3b6df0', 'A股指数': '#0ea371', 'A股红利': '#ea580c',
   '行业主题': '#8b5cf6', '债券固收': '#f59e0b', '现金/货基': '#94a3b8',
   '其他': '#64748b'
 };
+const INVEST_COLORS = { '核心底仓': '#3b6df0', '卫星仓位': '#ea580c', '防御对冲': '#f59e0b' };
+const INVEST_FILL = { '核心底仓': '#dbeafe', '卫星仓位': '#ffedd5', '防御对冲': '#fef3c7' };
+let chartPlatformInst = null, chartInvestInst = null;
 
 function getPortfolio() {
   try {
@@ -937,8 +1025,139 @@ function getPortfolio() {
   } catch { return { holdings: [], updated: '' }; }
 }
 
+// Look up a fund's correct name from portfolio data by code
+function getPortfolioName(code) {
+  const data = getPortfolio();
+  const h = data.holdings.find(x => x.code === code);
+  return h ? h.fund : null;
+}
+
 function savePortfolio(data) {
   localStorage.setItem(PORT_KEY, JSON.stringify(data));
+}
+
+function fmtVal(v) { return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+function fmtPnl(pnl, cost) {
+  if (!cost || cost === 0) return '--';
+  const pct = (pnl / cost * 100);
+  return (pnl >= 0 ? '+' : '') + '¥' + Math.abs(pnl).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%)';
+}
+
+function renderDonutCharts(h, totalVal) {
+  const ctxP = document.getElementById('chartPlatform');
+  const ctxI = document.getElementById('chartInvest');
+  if (!ctxP || !ctxI) return;
+
+  // Destroy existing charts
+  if (chartPlatformInst) chartPlatformInst.destroy();
+  if (chartInvestInst) chartInvestInst.destroy();
+
+  // Platform aggregation
+  const platforms = {};
+  h.forEach(x => {
+    const p = x.platform || '未知';
+    platforms[p] = (platforms[p] || 0) + (parseFloat(x.value) || 0);
+  });
+  const platEntries = Object.entries(platforms).sort((a, b) => b[1] - a[1]);
+  const platColors = ['#3b6df0', '#0ea371', '#ea580c', '#8b5cf6', '#f59e0b', '#94a3b8'];
+
+  // Invest category aggregation
+  const invests = {};
+  h.forEach(x => {
+    const ic = x.investCategory || '卫星仓位';
+    invests[ic] = (invests[ic] || 0) + (parseFloat(x.value) || 0);
+  });
+  const investOrder = ['核心底仓', '卫星仓位', '防御对冲'];
+  const investEntries = investOrder.filter(k => invests[k]).map(k => [k, invests[k]]);
+  // Add any unexpected categories
+  Object.entries(invests).forEach(([k, v]) => { if (!investOrder.includes(k)) investEntries.push([k, v]); });
+
+  document.getElementById('chartPlatformSub').textContent =
+    platEntries.map(([n, v]) => n + ' ' + fmtVal(v)).join('  ·  ');
+  document.getElementById('chartInvestSub').textContent =
+    investEntries.map(([n, v]) => n + ' ' + fmtVal(v) + ' (' + (v / totalVal * 100).toFixed(1) + '%)').join('  ·  ');
+
+  chartPlatformInst = new Chart(ctxP, {
+    type: 'doughnut',
+    data: {
+      labels: platEntries.map(([n]) => n),
+      datasets: [{
+        data: platEntries.map(([, v]) => v),
+        backgroundColor: platColors.slice(0, platEntries.length),
+        borderColor: '#fff', borderWidth: 2,
+        hoverBorderColor: '#fff', hoverBorderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + fmtVal(ctx.raw) + ' (' + (ctx.raw / totalVal * 100).toFixed(1) + '%)' } }
+      }
+    }
+  });
+
+  chartInvestInst = new Chart(ctxI, {
+    type: 'doughnut',
+    data: {
+      labels: investEntries.map(([n]) => n),
+      datasets: [{
+        data: investEntries.map(([, v]) => v),
+        backgroundColor: investEntries.map(([n]) => INVEST_COLORS[n] || '#94a3b8'),
+        borderColor: '#fff', borderWidth: 2,
+        hoverBorderColor: '#fff', hoverBorderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyleWidth: 8, font: { size: 11 } } },
+        tooltip: { callbacks: { label: ctx => ' ' + ctx.label + ': ' + fmtVal(ctx.raw) + ' (' + (ctx.raw / totalVal * 100).toFixed(1) + '%)' } }
+      }
+    }
+  });
+}
+
+function renderInvestBars(h, totalVal) {
+  const wrap = document.getElementById('investBarWrap');
+  if (!wrap) return;
+  const invests = {};
+  h.forEach(x => {
+    const ic = x.investCategory || '卫星仓位';
+    invests[ic] = (invests[ic] || 0) + (parseFloat(x.value) || 0);
+  });
+  const order = ['核心底仓', '卫星仓位', '防御对冲'];
+  const entries = order.filter(k => invests[k]).map(k => [k, invests[k]]);
+  Object.entries(invests).forEach(([k, v]) => { if (!order.includes(k)) entries.push([k, v]); });
+
+  wrap.innerHTML = entries.map(([name, val]) => {
+    const pct = (val / totalVal * 100);
+    const color = INVEST_COLORS[name] || '#94a3b8';
+    const bg = INVEST_FILL[name] || '#f1f5f9';
+    return `<div class="invest-bar-row">
+      <span class="invest-bar-label" style="color:${color}">${name}</span>
+      <div class="invest-bar-track">
+        <div class="invest-bar-fill" style="width:${pct}%;background:${color}">${pct.toFixed(1)}%</div>
+      </div>
+      <span class="invest-bar-val">${fmtVal(val)}</span>
+      <span style="font-size:.7em;color:var(--sub);min-width:40px;text-align:right">${entries.filter(e => e[0] === name).length ? h.filter(x => (x.investCategory||'卫星仓位') === name).length + '笔' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderPEBadge(code, fundName) {
+  const peInfo = getFundPE(code, fundName);
+  if (!peInfo || peInfo.pct == null) {
+    return '<span class="pe-badge pe-na">--</span>';
+  }
+  const pct = peInfo.pct;
+  let cls, label;
+  if (pct < 25) { cls = 'pe-low'; label = '低估'; }
+  else if (pct < 50) { cls = 'pe-low'; label = '偏低'; }
+  else if (pct < 70) { cls = 'pe-fair'; label = '合理'; }
+  else if (pct < 85) { cls = 'pe-high'; label = '偏高'; }
+  else { cls = 'pe-high'; label = '高估'; }
+  return `<span class="pe-badge ${cls}" title="${peInfo.label || ''} PE=${peInfo.pe!=null?peInfo.pe.toFixed(1):'--'} 分位${pct}%">${label} ${pct}%</span>`;
 }
 
 function renderPortfolio() {
@@ -954,15 +1173,15 @@ function renderPortfolio() {
   document.getElementById('portSummary').innerHTML = `
     <div class="port-stat">
       <div class="ps-label">总市值</div>
-      <div class="ps-value">¥${(totalVal/1e4).toFixed(2)}万</div>
+      <div class="ps-value">${fmtVal(totalVal)}</div>
     </div>
     <div class="port-stat">
       <div class="ps-label">总成本</div>
-      <div class="ps-value">¥${(totalCost/1e4).toFixed(2)}万</div>
+      <div class="ps-value">${fmtVal(totalCost)}</div>
     </div>
     <div class="port-stat">
       <div class="ps-label">累计盈亏</div>
-      <div class="ps-value" style="color:${totalPnL>=0?'var(--red)':'var(--green)'}">${totalPnL>=0?'+':''}¥${(totalPnL/1e4).toFixed(2)}万</div>
+      <div class="ps-value" style="color:${totalPnL>=0?'var(--red)':'var(--green)'}">${totalPnL>=0?'+':''}${fmtVal(totalPnL)}</div>
       <div class="ps-sub" style="color:${pnlPct>=0?'var(--red)':'var(--green)'}">${pnlPct>=0?'+':''}${pnlPct.toFixed(2)}%</div>
     </div>
     <div class="port-stat">
@@ -970,6 +1189,12 @@ function renderPortfolio() {
       <div class="ps-value">${h.length} 笔</div>
       <div class="ps-sub">${new Set(h.map(x=>x.platform)).size} 个平台</div>
     </div>`;
+
+  // Donut charts
+  if (totalVal > 0) {
+    renderDonutCharts(h, totalVal);
+    renderInvestBars(h, totalVal);
+  }
 
   // Per-platform summaries
   const platforms = {};
@@ -986,15 +1211,14 @@ function renderPortfolio() {
   let platHTML = '';
   for (const [name, p] of Object.entries(platforms)) {
     const pPnl = p.val - p.cost;
-    const pPct = p.cost > 0 ? (pPnl / p.cost * 100) : 0;
     const pnlColor = pPnl >= 0 ? 'var(--red)' : 'var(--green)';
     const catTags = Object.entries(p.cats).sort((a,b) => b[1] - a[1])
-      .map(([cn, cv]) => cn + ' ¥' + (cv/1e4).toFixed(1) + '万').join(' · ');
+      .map(([cn, cv]) => cn + ' ' + fmtVal(cv)).join(' · ');
     platHTML += '<div style="display:flex;align-items:center;gap:12px;padding:5px 0;font-size:.73em;flex-wrap:wrap;border-bottom:1px solid #eee">' +
       '<span style="font-weight:700;min-width:56px">' + name + '</span>' +
-      '<span>市值 <b>¥' + (p.val/1e4).toFixed(2) + '万</b></span>' +
-      '<span>成本 <b>¥' + (p.cost/1e4).toFixed(2) + '万</b></span>' +
-      '<span>盈亏 <b style="color:' + pnlColor + '">' + (pPnl>=0?'+':'') + '¥' + (Math.abs(pPnl)/1e4).toFixed(2) + '万 (' + (pPct>=0?'+':'') + pPct.toFixed(1) + '%)</b></span>' +
+      '<span>市值 <b>' + fmtVal(p.val) + '</b></span>' +
+      '<span>成本 <b>' + fmtVal(p.cost) + '</b></span>' +
+      '<span>盈亏 <b style="color:' + pnlColor + '">' + fmtPnl(pPnl, p.cost) + '</b></span>' +
       '<span style="color:var(--sub)">' + p.count + '笔</span>' +
       '<span style="color:var(--sub);font-size:.95em">' + catTags + '</span></div>';
   }
@@ -1017,26 +1241,31 @@ function renderPortfolio() {
   document.getElementById('portLegend').innerHTML = catEntries.map(([name, val]) => {
     const pct = totalVal > 0 ? (val / totalVal * 100) : 0;
     const color = CAT_COLORS[name] || '#94a3b8';
-    return `<span><span class="port-cat-dot" style="background:${color}"></span>${name} ${pct.toFixed(1)}% (¥${(val/1e4).toFixed(1)}万)</span>`;
+    return `<span><span class="port-cat-dot" style="background:${color}"></span>${name} ${pct.toFixed(1)}% (${fmtVal(val)})</span>`;
   }).join('');
 
   // Holdings table
   document.getElementById('portTable').innerHTML = h.length ? `
     <thead><tr>
-      <th>平台</th><th>基金/品种</th><th>类别</th><th>市值</th><th>成本</th><th>盈亏</th><th></th>
+      <th>平台</th><th>代码</th><th>基金/品种</th><th>风格</th><th>类别</th><th>PE分位</th><th>市值</th><th>成本</th><th>盈亏</th><th></th>
     </tr></thead>
     <tbody>${h.map((x, i) => {
       const val = parseFloat(x.value) || 0;
       const cost = parseFloat(x.cost) || 0;
       const pnl = val - cost;
       const pnlCls = pnl >= 0 ? 'pnl-up' : 'pnl-down';
+      const invest = x.investCategory || '卫星仓位';
+      const investBadge = invest === '核心底仓' ? 'badge-core' : invest === '卫星仓位' ? 'badge-sat' : 'badge-def';
       return `<tr>
         <td>${x.platform||''}</td>
-        <td>${x.fund||''}${x.code?' <span style="color:var(--sub);font-size:.9em">'+x.code+'</span>':''}</td>
+        <td style="font-weight:600">${x.code||'--'}</td>
+        <td>${x.fund||''}</td>
+        <td><span class="${investBadge}">${invest}</span></td>
         <td>${x.category||''}</td>
-        <td>¥${(val/1e4).toFixed(2)}万</td>
-        <td>${cost>0?'¥'+(cost/1e4).toFixed(2)+'万':'--'}</td>
-        <td class="${pnlCls}">${cost>0?(pnl>=0?'+':'')+pnl.toFixed(0)+' ('+(pnl/cost*100).toFixed(1)+'%)':'--'}</td>
+        <td>${renderPEBadge(x.code, x.fund)}</td>
+        <td>${fmtVal(val)}</td>
+        <td>${cost>0?fmtVal(cost):'--'}</td>
+        <td class="${pnlCls}">${fmtPnl(pnl, cost)}</td>
         <td><button class="del-btn" onclick="removeHolding(${i})" title="删除">×</button></td>
       </tr>`;
     }).join('')}</tbody>` : '<div style="color:var(--sub);font-size:.75em;padding:8px">暂无持仓记录，点击"录入持仓"添加</div>';
@@ -1058,6 +1287,7 @@ function addHolding() {
   const fund = document.getElementById('peFund').value.trim();
   const code = document.getElementById('peCode').value.trim();
   const category = document.getElementById('peCat').value;
+  const investCategory = document.getElementById('peInvest').value;
   const value = parseFloat(document.getElementById('peValue').value);
   const cost = parseFloat(document.getElementById('peCost').value) || 0;
 
@@ -1065,7 +1295,7 @@ function addHolding() {
   if (!value || value <= 0) { alert('请输入有效持仓市值'); return; }
 
   const data = getPortfolio();
-  data.holdings.push({ platform, fund, code, category, value, cost });
+  data.holdings.push({ platform, fund, code, category, investCategory, value, cost });
   data.updated = new Date().toLocaleString('zh-CN');
   savePortfolio(data);
   renderPortfolio();
@@ -1091,58 +1321,30 @@ async function refreshPortfolio() {
   if (!synced) renderPortfolio();
 }
 
-async function scanFolder() {
+async function ocrScan() {
   const el = document.getElementById('portFiles');
   el.style.display = 'block';
-  el.innerHTML = '<span style="color:var(--sub)">正在扫描截图文件夹...</span>';
-
-  // First, try to get file list from server
-  try {
-    const r = await fetch(SERVER_URL + '/api/files');
-    if (r.ok) {
-      serverAvailable = true;
-      const data = await r.json();
-      const platforms = data.platforms || {};
-      const platNames = Object.keys(platforms);
-      if (data.total > 0) {
-        el.innerHTML = '<strong>截图文件列表</strong> (共' + data.total + '张) &nbsp;|&nbsp; ' +
-          platNames.map(p => '<b>' + p + '</b>: ' + platforms[p].count + '张 (' +
-            (platforms[p].files || []).map(f => f.date).join(', ') + ')'
-          ).join(' &nbsp;|&nbsp; ');
-
-        // Trigger AI extraction
-        el.innerHTML += '<br><span style="color:var(--blue);cursor:pointer" onclick="triggerExtract()">🔍 点击OCR识别持仓数据</span>';
-        return;
-      } else {
-        el.innerHTML = '<span style="color:var(--sub)">未找到截图文件，请将截图放入桌面\\投资理财\\[平台名]\\ 文件夹</span>';
-        return;
-      }
-    }
-  } catch (e) { /* server not running */ }
-
-  // Fallback: show manual info
-  el.innerHTML = '<span style="color:var(--amber)">本地服务器未启动</span> · ' +
-    '请在 fund-dashboard 目录运行 <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">node server.js</code> 以启用AI识别<br>' +
-    '<span style="opacity:.7">或使用下方"录入持仓"手动添加</span>';
-}
-
-async function triggerExtract() {
-  const el = document.getElementById('portFiles');
-  el.innerHTML = '<span style="color:var(--blue)">正在OCR识别截图中，约需30秒...</span>';
+  el.innerHTML = '<span style="color:var(--blue)">📷 正在扫描并识别截图中，约需30秒...</span>';
   try {
     const r = await fetch(SERVER_URL + '/api/ocr-scan', { method: 'POST' });
     const data = await r.json();
-    if (data.ok) {
-      el.innerHTML = '<span style="color:var(--green)">OCR识别完成！提取到 ' + data.total + ' 笔持仓 (' + (data.scannedAt || '') + ')</span>';
-      const portData = { holdings: data.holdings, updated: new Date().toLocaleString('zh-CN') };
-      savePortfolio(portData);
+    if (data.ok && data.holdings && data.holdings.length > 0) {
+      serverAvailable = true;
+      const platforms = {};
+      data.holdings.forEach(h => { platforms[h.platform] = (platforms[h.platform] || 0) + 1; });
+      const platStr = Object.entries(platforms).map(([k, v]) => k + ': ' + v + '笔').join(', ');
+      el.innerHTML = '<span style="color:var(--green)">✅ 识别完成：共 ' + data.total + ' 笔持仓 (' + platStr + ')</span>';
+      savePortfolio({ holdings: data.holdings, updated: new Date().toLocaleString('zh-CN') });
       renderPortfolio();
+      syncPortfolioCodes();
     } else {
-      el.innerHTML = '<span style="color:var(--red)">OCR识别失败: ' + (data.error || '未知错误') + '</span><br>' +
-        '<span style="opacity:.7">请确认截图文件夹中存在截图文件</span>';
+      el.innerHTML = '<span style="color:var(--red)">识别失败: ' + (data.error || '未提取到持仓数据') + '</span><br>' +
+        '<span style="opacity:.7">请确认截图文件夹中有包含持仓页面的截图</span>';
     }
   } catch (e) {
-    el.innerHTML = '<span style="color:var(--red)">连接服务器失败: ' + e.message + '</span>';
+    el.innerHTML = '<span style="color:var(--amber)">连接服务器失败</span> · ' +
+      '请在 fund-dashboard 目录运行 <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">node server.js</code><br>' +
+      '<span style="opacity:.7">或使用"录入持仓"手动添加</span>';
   }
 }
 
@@ -1157,7 +1359,10 @@ async function syncFromServer(forceScan) {
         if (data.ok && data.holdings && data.holdings.length > 0) {
           savePortfolio({ holdings: data.holdings, updated: new Date().toLocaleString('zh-CN') });
           renderPortfolio();
-          document.getElementById('portFiles').innerHTML = '<span style="color:var(--green)">OCR刷新完成: ' + data.total + ' 笔持仓 (' + (data.scannedAt || '') + ')</span>';
+          const platforms = {};
+          data.holdings.forEach(h => { platforms[h.platform] = (platforms[h.platform] || 0) + 1; });
+          const platStr = Object.entries(platforms).map(([k, v]) => k + ': ' + v + '笔').join(', ');
+          document.getElementById('portFiles').innerHTML = '<span style="color:var(--green)">✅ 刷新完成：共 ' + data.total + ' 笔持仓 (' + platStr + ')</span>';
           document.getElementById('portFiles').style.display = 'block';
           return true;
         }
@@ -1177,6 +1382,14 @@ async function syncFromServer(forceScan) {
     }
   } catch (e) { serverAvailable = false; }
   return false;
+}
+
+// Sync fund detail cards to show ONLY portfolio holdings
+function syncPortfolioCodes() {
+  const codes = getCodes();
+  if (!codes.length) return;
+  document.getElementById('cacheHint').textContent = '持仓: ' + codes.join(', ');
+  refreshAll();
 }
 
 // ======================== Init ========================
@@ -1200,11 +1413,14 @@ async function syncFromServer(forceScan) {
     document.getElementById('serverStatus').innerHTML = '🔴 本地服务未连接';
   }
 
+  // Load fund detail cards from portfolio holdings only
   const codes = getCodes();
   if (codes.length) {
-    document.getElementById('fundInput').placeholder = `已保存: ${codes.join(', ')}`;
-    document.getElementById('cacheHint').textContent = '已保存: ' + codes.join(', ');
+    document.getElementById('fundInput').placeholder = '输入6位基金代码，逗号分隔';
+    document.getElementById('cacheHint').textContent = '持仓: ' + codes.join(', ');
     refreshAll();
+  } else {
+    document.getElementById('loadingMsg').style.display = 'none';
   }
   // Try live market data in background
   setTimeout(tryFetchVIX, 500);
