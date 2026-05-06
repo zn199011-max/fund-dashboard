@@ -5,42 +5,218 @@
       "fund": "浙商积存金",
       "code": "",
       "category": "其他",
+      "investCategory": "防御对冲",
       "value": 44602.25,
-      "cost": 49245
+      "cost": 49245.3
+    },
+    {
+      "platform": "京东金融",
+      "fund": "天弘纳斯达克100指数发起QDIIA",
+      "code": "018043",
+      "category": "美股QDII",
+      "investCategory": "核心底仓",
+      "value": 1184.25,
+      "cost": 1184.25
+    },
+    {
+      "platform": "京东金融",
+      "fund": "华夏国证自由现金流ETF发起式联接A",
+      "code": "023917",
+      "category": "A股红利",
+      "investCategory": "卫星仓位",
+      "value": 2875.93,
+      "cost": 2875.93
+    },
+    {
+      "platform": "京东金融",
+      "fund": "摩根标普500指数QDII人民币A",
+      "code": "017641",
+      "category": "美股QDII",
+      "investCategory": "核心底仓",
+      "value": 1288.96,
+      "cost": 1288.96
+    },
+    {
+      "platform": "京东金融",
+      "fund": "易方达中证A500ETF联接A",
+      "code": "022459",
+      "category": "A股指数",
+      "investCategory": "核心底仓",
+      "value": 577.82,
+      "cost": 577.82
+    },
+    {
+      "platform": "京东金融",
+      "fund": "南方纳斯达克100指数发起QDII A",
+      "code": "016452",
+      "category": "美股QDII",
+      "investCategory": "核心底仓",
+      "value": 475.63,
+      "cost": 475.63
+    },
+    {
+      "platform": "京东金融",
+      "fund": "博时标普500ETF联接A",
+      "code": "050025",
+      "category": "美股QDII",
+      "investCategory": "核心底仓",
+      "value": 50,
+      "cost": 50
+    },
+    {
+      "platform": "同花顺",
+      "fund": "纳指ETF",
+      "code": "159941",
+      "category": "美股QDII",
+      "investCategory": "核心底仓",
+      "value": 4950.4,
+      "cost": 4760.6
+    },
+    {
+      "platform": "同花顺",
+      "fund": "卫星ETF",
+      "code": "503250",
+      "category": "行业主题",
+      "investCategory": "卫星仓位",
+      "value": 6831,
+      "cost": 7193.5
+    },
+    {
+      "platform": "同花顺",
+      "fund": "黄金ETF",
+      "code": "159934",
+      "category": "其他",
+      "investCategory": "防御对冲",
+      "value": 46460,
+      "cost": 52174.12
+    },
+    {
+      "platform": "同花顺",
+      "fund": "红利低波",
+      "code": "512890",
+      "category": "A股红利",
+      "investCategory": "卫星仓位",
+      "value": 2613.6,
+      "cost": 2617.3
+    },
+    {
+      "platform": "同花顺",
+      "fund": "电网设备",
+      "code": "159326",
+      "category": "行业主题",
+      "investCategory": "卫星仓位",
+      "value": 5434.8,
+      "cost": 5463.4
+    },
+    {
+      "platform": "同花顺",
+      "fund": "港股科技",
+      "code": "513970",
+      "category": "美股QDII",
+      "investCategory": "卫星仓位",
+      "value": 3031.5,
+      "cost": 3164.8
     },
     {
       "platform": "支付宝",
-      "fund": "天弘全球高端制造混合QDII",
-      "code": "012560",
+      "fund": "天弘全球高端制造混合QDII C",
+      "code": "016665",
       "category": "行业主题",
-      "value": 866,
-      "cost": 867
+      "investCategory": "卫星仓位",
+      "value": 865.75,
+      "cost": 867.48
     },
     {
       "platform": "支付宝",
       "fund": "广发远见智选混合C",
-      "code": "022184",
+      "code": "016874",
       "category": "其他",
-      "value": 550,
-      "cost": 561
+      "investCategory": "卫星仓位",
+      "value": 549.59,
+      "cost": 561.04
     },
     {
       "platform": "支付宝",
       "fund": "华泰柏瑞质量成长混合C",
-      "code": "011453",
+      "code": "011452",
       "category": "A股指数",
-      "value": 583,
+      "investCategory": "核心底仓",
+      "value": 582.6,
       "cost": 600
     },
     {
       "platform": "支付宝",
       "fund": "华夏有色金属ETF联接C",
-      "code": "016650",
+      "code": "016708",
       "category": "行业主题",
+      "investCategory": "卫星仓位",
       "value": 5385,
-      "cost": 5556
+      "cost": 5556.13
+    },
+    {
+      "platform": "支付宝",
+      "fund": "广发半导体材料设备主题ETF联接C",
+      "code": "020640",
+      "category": "行业主题",
+      "investCategory": "卫星仓位",
+      "value": 2245.51,
+      "cost": 2012.83
+    },
+    {
+      "platform": "支付宝",
+      "fund": "易方达全球成长精选混合QDII C",
+      "code": "012922",
+      "category": "美股QDII",
+      "investCategory": "核心底仓",
+      "value": 879.22,
+      "cost": 788.61
+    },
+    {
+      "platform": "支付宝",
+      "fund": "永嬗先锋半导体智选混合C",
+      "code": "025209",
+      "category": "行业主题",
+      "investCategory": "卫星仓位",
+      "value": 407.47,
+      "cost": 399.99
+    },
+    {
+      "platform": "支付宝",
+      "fund": "富国中证细分化工产业主题ETF联接C",
+      "code": "020274",
+      "category": "行业主题",
+      "investCategory": "卫星仓位",
+      "value": 1673.91,
+      "cost": 1673.91
+    },
+    {
+      "platform": "支付宝",
+      "fund": "华夏全球科技先锋混合QDII C",
+      "code": "024239",
+      "category": "行业主题",
+      "investCategory": "核心底仓",
+      "value": 1097.12,
+      "cost": 1097.12
+    },
+    {
+      "platform": "支付宝",
+      "fund": "易方达中证沪深港黄金产业股票指数C",
+      "code": "021363",
+      "category": "行业主题",
+      "investCategory": "卫星仓位",
+      "value": 6993.64,
+      "cost": 7987.25
+    },
+    {
+      "platform": "支付宝",
+      "fund": "西部利得祥逸债券C",
+      "code": "675093",
+      "category": "债券固收",
+      "investCategory": "防御对冲",
+      "value": 10103.31,
+      "cost": 10089.19
     }
   ],
-  "updated": "2026/5/5 14:10:12",
-  "lastScan": "2026-05-05T06:10:10.630Z"
+  "updated": "2026/5/6 00:22:12",
+  "lastScan": "2026-05-05T16:22:02.940Z"
 }
