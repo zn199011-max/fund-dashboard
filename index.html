@@ -1342,9 +1342,8 @@ async function ocrScan() {
         '<span style="opacity:.7">请确认截图文件夹中有包含持仓页面的截图</span>';
     }
   } catch (e) {
-    el.innerHTML = '<span style="color:var(--amber)">连接服务器失败</span> · ' +
-      '请在 fund-dashboard 目录运行 <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">node server.js</code><br>' +
-      '<span style="opacity:.7">或使用"录入持仓"手动添加</span>';
+    el.innerHTML = '⚠️ 本地服务未启动 · 请运行 <code style="background:#f1f5f9;padding:1px 4px;border-radius:3px">node server.js</code> 后重试<br>' +
+      '<span style="opacity:.7">基金数据查看不受影响，仅OCR截图识别需要本地服务</span>';
   }
 }
 
@@ -1410,7 +1409,7 @@ function syncPortfolioCodes() {
     }
   } catch (e) {
     serverAvailable = false;
-    document.getElementById('serverStatus').innerHTML = '🔴 本地服务未连接';
+    document.getElementById('serverStatus').innerHTML = '📡 离线模式';
   }
 
   // Load fund detail cards from portfolio holdings only
